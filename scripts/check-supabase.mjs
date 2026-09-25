@@ -15,6 +15,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -54,6 +55,11 @@ if (failed) process.exit(1);
 const client = () =>
   createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    // Node 20 n'expose pas WebSocket nativement, et supabase-js instancie un
+    // RealtimeClient des createClient() : sans transport explicite, le script
+    // plante avant meme le premier appel. Le navigateur, lui, n'en a pas
+    // besoin — c'est pour ca que `ws` reste une devDependency.
+    realtime: { transport: ws },
   });
 
 /* ---------- 2. Authentification anonyme ---------- */

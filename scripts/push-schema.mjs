@@ -23,7 +23,7 @@
  *
  *   --dry   affiche ce qui serait fait, sans rien envoyer
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -162,17 +162,101 @@ if (!res.ok) {
 }
 
 console.log(`  ${C.g("✓")} schema execute`);
-const check = await fetch(`https://api.supabase.com/v1/projects/${REF}/database/query`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
-  body: JSON.stringify({
-    query:
-      "select (select count(*) from public.tf_questions) q, (select count(*) from public.tf_answers) a",
-  }),
-});
-if (check.ok) {
-  const rows = await check.json();
-  const r = Array.isArray(rows) ? rows[0] : rows;
-  console.log(`  ${C.g("✓")} panel en place  ${C.dim(`${r?.q} questions, ${r?.a} reponses`)}`);
+
+const api = (path, init = {}) =>
+  fetch(`https://api.supabase.com/v1/projects/${REF}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${TOKEN}`,
+      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
+
+const query = (q) =>
+  api("/database/query", { method: "POST", body: JSON.stringify({ query: q }) });
+
+/* ---------- Le panel est-il en place ? ---------- */
+{
+  const res2 = await query(
+    "select (select count(*) from public.tf_questions) q, (select count(*) from public.tf_answers) a"
+  );
+  if (res2.ok) {
+    const rows = await res2.json();
+    const r = Array.isArray(rows) ? rows[0] : rows;
+    console.log(`  ${C.g("✓")} panel en place  ${C.dim(`${r?.q} questions, ${r?.a} reponses`)}`);
+  }
 }
-console.log(`\n${C.g("Termine.")} Lance maintenant : ${C.b("npm run check:supabase")}\n`);
+
+/* ---------- La cle publique, ecrite dans .env.local ---------- */
+let publishable = null;
+{
+  const res2 = await api("/api-keys?reveal=true");
+  if (res2.ok) {
+    const keys = await res2.json();
+    const list = Array.isArray(keys) ? keys : (keys?.data ?? []);
+    // Supabase a renomme "anon" en "publishable" : on accepte les deux, et
+    // on ne prend jamais une cle de service (elle contournerait toute la
+    // securite RLS si elle arrivait dans le navigateur).
+    const found = list.find(
+      (k) =>
+        (k?.type === "publishable" || k?.name === "anon" || k?.name === "publishable") &&
+        typeof (k?.api_key ?? k?.apiKey) === "string"
+    );
+    publishable = found ? (found.api_key ?? found.apiKey) : null;
+    if (publishable && /service_role/.test(String(found?.name ?? ""))) publishable = null;
+  }
+
+  if (!publishable) {
+    console.log(`  ${C.y("!")} cle publique non recuperable via l'API`);
+    console.log(C.dim(`      Copie-la depuis Project Settings > API et mets-la dans .env.local.`));
+  } else {
+    const envPath = join(root, ".env.local");
+    const lines = existsSync(envPath) ? readFileSync(envPath, "utf8").split("\n") : [];
+    const out = [];
+    let wroteUrl = false;
+    let wroteKey = false;
+    for (const l of lines) {
+      if (/^\s*#\s*A REMPLIR/.test(l)) continue;
+      if (l.startsWith("NEXT_PUBLIC_SUPABASE_URL=")) {
+        out.push(`NEXT_PUBLIC_SUPABASE_URL=https://${REF}.supabase.co`);
+        wroteUrl = true;
+      } else if (l.startsWith("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=")) {
+        out.push(`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${publishable}`);
+        wroteKey = true;
+      } else out.push(l);
+    }
+    if (!wroteUrl) out.unshift(`NEXT_PUBLIC_SUPABASE_URL=https://${REF}.supabase.co`);
+    if (!wroteKey) out.splice(1, 0, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${publishable}`);
+    writeFileSync(envPath, out.join("\n"));
+    console.log(
+      `  ${C.g("✓")} cle publique ecrite dans .env.local  ${C.dim(`${publishable.slice(0, 14)}…`)}`
+    );
+  }
+}
+
+/* ---------- L'authentification anonyme ---------- */
+{
+  const res2 = await api("/config/auth", {
+    method: "PATCH",
+    body: JSON.stringify({ external_anonymous_users_enabled: true }),
+  });
+  if (res2.ok) {
+    console.log(`  ${C.g("✓")} authentification anonyme activee`);
+  } else {
+    const body = await res2.text();
+    console.log(`  ${C.y("!")} auth anonyme non activee automatiquement (HTTP ${res2.status})`);
+    console.log(C.dim(`      ${body.slice(0, 160)}`));
+    console.log(
+      C.dim(`      A faire a la main : Authentication > Providers > Anonymous > Enable.`)
+    );
+  }
+}
+
+console.log(`\n${C.g("Termine.")}`);
+console.log(`  Verifie  : ${C.b("npm run check:supabase")}`);
+console.log(`  Puis joue: ${C.b("npm run playtest")}`);
+console.log(
+  C.dim(`\n  Le jeton n'est ecrit nulle part. Revoque-le quand tu veux :`) +
+    C.dim(`\n  https://supabase.com/dashboard/account/tokens\n`)
+);
