@@ -20,6 +20,7 @@ export default function AnswerForm({
   busy,
   tone = "gold",
   autoFocus = true,
+  resetKey,
   onSubmit,
 }: {
   title: string;
@@ -29,11 +30,31 @@ export default function AnswerForm({
   busy: boolean;
   tone?: "gold" | "r" | "b";
   autoFocus?: boolean;
+  /**
+   * Change a chaque nouvelle question : le champ se vide et se rearme.
+   *
+   * Indispensable, et pas seulement confortable. En finale, la PHASE ne
+   * change pas entre les cinq questions : React reutilisait donc la meme
+   * instance, `sent` restait vrai, et le finaliste se retrouvait avec un
+   * champ desactive et un bouton « Envoye… » des la question 2. Il ne
+   * pouvait repondre qu'a une seule question sur cinq.
+   *
+   * Les appelants passent `phase_seq`, qui s'incremente a chaque beat du
+   * serveur — y compris entre deux questions de finale.
+   */
+  resetKey: number | string;
   onSubmit: (value: string) => void;
 }) {
   const [value, setValue] = useState("");
   const [sent, setSent] = useState(false);
   const ref = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setValue("");
+    setSent(false);
+    if (autoFocus) ref.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
 
   useEffect(() => {
     if (autoFocus) ref.current?.focus();

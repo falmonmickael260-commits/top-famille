@@ -20,9 +20,10 @@ import Strikes from "@/components/stage/Strikes";
 import Timer from "@/components/stage/Timer";
 import VictoryScene from "@/components/stage/VictoryScene";
 import { hostSkip, playerName, restartShow, startShow, teamOf } from "@/lib/api";
-import { initAudio, play, setMood } from "@/lib/audio";
+import { initAudio, installAudioUnlock, play, setMood } from "@/lib/audio";
 import { script } from "@/lib/announcer";
 import { TEAM_NAME, TOTAL_ROUNDS, type Team } from "@/lib/types";
+import { useWakeLock } from "@/lib/useWakeLock";
 import type { UseGame } from "@/lib/useGame";
 
 /**
@@ -49,6 +50,13 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
   const lastBeat = useRef(-1);
 
   const sc = useMemo(() => (state ? script(state) : null), [state]);
+
+  // Le plateau ne doit jamais s'eteindre en pleine manche.
+  useWakeLock(!!game && game.status !== "finished");
+
+  useEffect(() => {
+    installAudioUnlock();
+  }, []);
 
   /* Les beats : un son, une secousse, un transfert de points. Cales sur
      phase_seq, donc joues une seule fois meme si l'etat se rafraichit. */

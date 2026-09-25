@@ -283,6 +283,7 @@ body {
 .cam {
   position: relative;
   z-index: 1;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   transform: translate3d(var(--cam-x), var(--cam-y), 0) scale(var(--cam-scale));
   filter: blur(var(--cam-blur));
   transition:
@@ -460,6 +461,9 @@ body {
 
 .btn {
   position: relative;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -531,6 +535,14 @@ body {
 /* LE BUZZER. Gros, rond, et il respire tant qu'il est armé. */
 .buzzer {
   position: relative;
+  /* Sur un telephone, un appui maintenu sur un gros bouton declenche la loupe
+     de selection et un menu contextuel — juste au moment ou le joueur veut
+     buzzer. `touch-action: manipulation` supprime en plus le delai de 300 ms
+     que les navigateurs mobiles gardent pour detecter un double-tap. */
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   width: min(66vw, 17rem);
   aspect-ratio: 1;
   border-radius: 999px;
@@ -859,6 +871,12 @@ body {
   display: flex;
   flex-direction: column;
   transition: background 500ms ease;
+  /* La barre d'accueil de l'iPhone recouvre le bas de l'ecran : sans ces
+     marges, "Quitter" et "Regles" passent dessous et deviennent intouchables.
+     Idem a l'horizontale en paysage, avec l'encoche. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 .remote[data-mode="turn"] {
   background:

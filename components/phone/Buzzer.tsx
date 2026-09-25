@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { play } from "@/lib/audio";
 
 /**
@@ -18,13 +18,23 @@ import { play } from "@/lib/audio";
  */
 export default function Buzzer({
   armed,
+  resetKey,
   onBuzz,
 }: {
   armed: boolean;
+  /** Change a chaque nouvelle fenetre de buzz : le bouton se rearme. */
+  resetKey: number | string;
   onBuzz: () => void;
 }) {
   const [sent, setSent] = useState(false);
   const fired = useRef(false);
+
+  // Meme precaution que dans AnswerForm : si le composant n'est pas
+  // demonte entre deux fenetres de buzz, il resterait verrouille.
+  useEffect(() => {
+    setSent(false);
+    fired.current = false;
+  }, [resetKey]);
 
   const fire = () => {
     if (!armed || fired.current) return;

@@ -41,10 +41,22 @@ let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let musicGain: GainNode | null = null;
 let musicTimer: number | null = null;
-let musicMood: "lobby" | "play" | "tense" | "finale" | null = null;
+let musicMood: Mood = null;
 
 let sfxOn = true;
 let musicOn = true;
+
+/**
+ * iOS et Safari ne demarrent un AudioContext que DANS un geste utilisateur,
+ * et exigent qu'on y joue un son — meme silencieux — pour le debloquer.
+ * Tant que ce n'est pas fait, tout appel a play() reste muet : c'est ce qui
+ * aurait rendu le buzzer et la musique inaudibles sur iPhone.
+ */
+let unlocked = false;
+let pendingMood: Mood = null;
+let unlockInstalled = false;
+
+type Mood = "lobby" | "play" | "tense" | "finale" | null;
 
 function readFlag(key: string, fallback: boolean): boolean {
   try {
@@ -86,8 +98,61 @@ export function initAudio() {
   musicGain.connect(master);
 }
 
+/**
+ * A appeler DANS un geste utilisateur. Joue un echantillon d'une image pour
+ * que le systeme considere le contexte comme demarre, puis rattrape l'ambiance
+ * musicale qui attendait.
+ */
+export function unlockAudio() {
+  initAudio();
+  if (!ctx) return;
+  if (ctx.state === "suspended") void ctx.resume();
+
+  if (!unlocked) {
+    try {
+      const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start(0);
+      unlocked = true;
+    } catch {
+      /* on retentera au prochain geste */
+    }
+  }
+
+  if (unlocked && pendingMood) {
+    const m = pendingMood;
+    pendingMood = null;
+    musicMood = null; // force la reprise
+    setMood(m);
+  }
+}
+
+/**
+ * Installe l'ecouteur qui debloque le son au premier geste, une seule fois
+ * pour la page. Les trois evenements sont necessaires : `touchstart` pour
+ * iOS, `pointerdown` pour le reste, `keydown` pour qui joue au clavier.
+ */
+export function installAudioUnlock() {
+  if (typeof window === "undefined" || unlockInstalled) return;
+  unlockInstalled = true;
+  const once = () => {
+    unlockAudio();
+    if (unlocked) {
+      for (const ev of ["pointerdown", "touchstart", "keydown"] as const) {
+        window.removeEventListener(ev, once);
+      }
+    }
+  };
+  for (const ev of ["pointerdown", "touchstart", "keydown"] as const) {
+    window.addEventListener(ev, once, { passive: true });
+  }
+}
+
 export const isSfxOn = () => sfxOn;
 export const isMusicOn = () => musicOn;
+export const isAudioUnlocked = () => unlocked;
 
 export function setSfx(on: boolean) {
   sfxOn = on;
@@ -189,6 +254,9 @@ export function play(cue: Cue) {
   initAudio();
   if (!ctx) return;
   if (ctx.state === "suspended") void ctx.resume();
+  // Avant le premier geste, le systeme refuse de sortir le moindre son :
+  // inutile d'en programmer, ils ne se joueraient pas.
+  if (!unlocked && ctx.state !== "running") return;
 
   switch (cue) {
     case "ui":
@@ -337,14 +405,14 @@ export function play(cue: Cue) {
 /* ------------------------------------------------------------------ */
 
 /** Quatre ambiances, une par grand moment du show. */
-const MOODS: Record<string, { notes: string[]; step: number; type: OscillatorType; bass: string }> = {
+const MOODS: Record<NonNullable<Mood>, { notes: string[]; step: number; type: OscillatorType; bass: string }> = {
   lobby:  { notes: ["C4", "E4", "G4", "E4"],       step: 0.42, type: "sine",     bass: "C3" },
   play:   { notes: ["C4", "G4", "A4", "G4", "E4"], step: 0.3,  type: "triangle", bass: "C3" },
   tense:  { notes: ["A3", "C4", "E4", "C4"],       step: 0.19, type: "square",   bass: "A3" },
   finale: { notes: ["E4", "G4", "B4", "E5", "B4"], step: 0.26, type: "triangle", bass: "E3" },
 };
 
-export function setMood(mood: "lobby" | "play" | "tense" | "finale" | null) {
+export function setMood(mood: Mood) {
   if (mood === musicMood) return;
   musicMood = mood;
   stopMusic();
@@ -353,6 +421,14 @@ export function setMood(mood: "lobby" | "play" | "tense" | "finale" | null) {
   initAudio();
   if (!ctx || !musicGain) return;
   if (ctx.state === "suspended") void ctx.resume();
+
+  // Pas encore de geste utilisateur : on retient l'ambiance, unlockAudio()
+  // la lancera. Sans ca, le lit musical ne demarrait jamais sur iPhone.
+  if (!unlocked && ctx.state !== "running") {
+    pendingMood = mood;
+    musicMood = null;
+    return;
+  }
 
   const cfg = MOODS[mood];
   musicGain.gain.cancelScheduledValues(ctx.currentTime);

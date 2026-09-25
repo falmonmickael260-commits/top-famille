@@ -511,6 +511,33 @@ Sur un vrai réseau local, les téléphones se connectent à
 
 ---
 
+## Ce qui a été vérifié sur un vrai téléphone
+
+Ces points ne se voient qu'en jouant l'interface, pas en testant le serveur —
+et c'est là qu'ont été trouvés les bugs les plus graves :
+
+- **Le son sur iPhone.** iOS et Safari ne démarrent un `AudioContext` que
+  *dans* un geste utilisateur, et exigent qu'on y joue un échantillon même
+  silencieux. `installAudioUnlock()` s'en charge au premier appui, et
+  l'ambiance musicale demandée avant ce geste est rejouée ensuite. Sans ça,
+  le buzzer et la musique restaient muets sur iPhone.
+- **L'écran qui s'éteint.** Un joueur pose son téléphone, l'écran s'éteint,
+  il rate son tour. `useWakeLock` maintient l'écran allumé pendant le show,
+  côté téléphone comme côté plateau, et le reprend au retour au premier plan.
+- **La loupe de sélection sur le buzzer.** Un appui maintenu déclenchait le
+  menu contextuel au moment précis où le joueur veut buzzer :
+  `touch-action: manipulation`, `user-select: none` et
+  `-webkit-touch-callout: none` — ce qui supprime aussi le délai de 300 ms
+  du double-tap.
+- **La barre d'accueil de l'iPhone** recouvrait « Quitter » et « Règles » :
+  `env(safe-area-inset-*)` sur la télécommande et sur le plateau.
+- **Le formulaire verrouillé en finale.** La phase ne change pas entre les
+  cinq questions, donc React réutilisait la même instance du formulaire et
+  son état « envoyé » restait vrai : **le finaliste ne pouvait répondre qu'à
+  la première question sur cinq**. Le champ se réarme maintenant à chaque
+  `phase_seq`. Vérifié : dix réponses de finale enregistrées d'affilée dans
+  la même instance.
+
 ## Accessibilité et performance
 
 - `prefers-reduced-motion` : pas de loader cinématique, pas de projecteurs qui

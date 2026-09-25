@@ -8,7 +8,7 @@ import Particles from "@/components/fx/Particles";
 import SoundToggles from "@/components/fx/SoundToggles";
 import Studio from "@/components/fx/Studio";
 import { cleanError, createGame, joinGame, parseCode, prettyCode } from "@/lib/api";
-import { initAudio, play, setMood } from "@/lib/audio";
+import { initAudio, installAudioUnlock, play, setMood } from "@/lib/audio";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { MAX_PER_TEAM, TEAM_NAME, type Team } from "@/lib/types";
 
@@ -34,6 +34,9 @@ export default function HomePage() {
   const [rules, setRules] = useState(false);
 
   useEffect(() => {
+    // Le son doit etre debloque par le premier geste de l'utilisateur, sinon
+    // iOS et Safari ne sortiront jamais un seul buzzer.
+    installAudioUnlock();
     try {
       const seen = window.sessionStorage.getItem(LOADER_KEY);
       setShowLoader(!seen);

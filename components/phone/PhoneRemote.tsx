@@ -20,8 +20,9 @@ import {
   startShow,
   submitAnswer,
 } from "@/lib/api";
-import { initAudio, play, setMood } from "@/lib/audio";
+import { initAudio, installAudioUnlock, play, setMood } from "@/lib/audio";
 import { TEAM_DOT, TEAM_NAME, type Team } from "@/lib/types";
+import { useWakeLock } from "@/lib/useWakeLock";
 import type { UseGame } from "@/lib/useGame";
 
 /**
@@ -40,7 +41,11 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
   const [rules, setRules] = useState(false);
   const lastBeat = useRef(-1);
 
+  // L'ecran du joueur ne doit pas s'eteindre : il raterait son tour.
+  useWakeLock(!!game && game.status !== "finished");
+
   useEffect(() => {
+    installAudioUnlock();
     try {
       if (!window.localStorage.getItem(RULES_SEEN_KEY)) setRules(true);
     } catch {
@@ -204,7 +209,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
             (iAmDuelist ? (
               <div className="flex flex-col items-center gap-6">
                 <Question text={state.board?.prompt} />
-                <Buzzer armed onBuzz={() => g.run(() => buzz(code))} />
+                <Buzzer armed resetKey={game.phase_seq} onBuzz={() => g.run(() => buzz(code))} />
                 <div className="w-full max-w-xs">
                   <Timer remainingMs={remainingMs} totalMs={phaseTotalMs} label="Fenêtre de buzz" />
                 </div>
@@ -230,6 +235,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                   remainingMs={remainingMs}
                   totalMs={phaseTotalMs}
                   busy={busy}
+                  resetKey={game.phase_seq}
                   tone={myTeam === "B" ? "b" : "r"}
                   onSubmit={(v) => g.run(() => submitAnswer(code, v))}
                 />
@@ -297,6 +303,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                   remainingMs={remainingMs}
                   totalMs={phaseTotalMs}
                   busy={busy}
+                  resetKey={game.phase_seq}
                   tone="gold"
                   onSubmit={(v) => g.run(() => submitAnswer(code, v))}
                 />
@@ -350,6 +357,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                   remainingMs={remainingMs}
                   totalMs={phaseTotalMs}
                   busy={busy}
+                  resetKey={game.phase_seq}
                   tone={myTeam === "R" ? "r" : "b"}
                   onSubmit={(v) => g.run(() => submitAnswer(code, v))}
                 />
@@ -420,6 +428,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                   remainingMs={remainingMs}
                   totalMs={phaseTotalMs}
                   busy={busy}
+                  resetKey={game.phase_seq}
                   tone="gold"
                   onSubmit={(v) => g.run(() => submitAnswer(code, v))}
                 />
