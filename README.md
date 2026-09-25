@@ -8,7 +8,13 @@ grande finale. Le plateau va sur la **télévision**, chaque joueur garde son
 n'a besoin de tenir le micro.
 
 **Stack** : Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS ·
-Supabase (Auth anonyme, Postgres, Realtime) · déployable sur Vercel.
+Supabase (Auth anonyme, Postgres, Realtime) · déployé sur Vercel.
+
+| | |
+|---|---|
+| En ligne | <https://top-famille.vercel.app> |
+| Dépôt | <https://github.com/falmonmickael260-commits/top-famille> |
+| Supabase | projet dédié `wfguhfovryflzwtgpjdb` |
 
 ---
 
@@ -335,7 +341,38 @@ consommation, voiture, travail, école, fêtes, sorties, voyages, habitudes.
 | `npm run validate:questions` | garde-fou qualité du panel |
 | `npm run build:schema` | réinjecte `questions.json` dans `schema.sql` |
 | `npm run check:supabase` | diagnostic de connexion et de sécurité |
-| `npm run playtest` | **une partie complète jouée par des robots** |
+| `npm run simulate` | **le schéma exécuté dans Postgres/WASM, hors ligne** |
+| `npm run playtest` | **une partie complète jouée par des robots, sur Supabase** |
+
+### `npm run simulate`
+
+Le schéma **exécuté pour de vrai, sans Supabase et sans réseau**. PGlite est
+PostgreSQL compilé en WebAssembly : `supabase/schema.sql` s'y exécute avec le
+même moteur plpgsql que dans le SQL Editor. En quelques secondes, on obtient :
+
+- la **validation syntaxique de tout le fichier** — une virgule de travers dans
+  une fonction ne se verrait autrement qu'en pleine partie ;
+- une **partie entière** jouée contre la vraie machine d'état, les cinq manches
+  et la finale ;
+- la preuve que les **verrous tiennent** : double buzz, double validation,
+  réponse hors tour, vol par la mauvaise équipe, écriture directe sur les
+  scores — tout est refusé, en interrogeant la base *en tant que* le rôle
+  `authenticated` que porte un joueur connecté ;
+- la preuve qu'une **réponse non trouvée ne sort jamais du serveur** ;
+- les cas limites de composition : **1 contre 1** (le même joueur tient les
+  deux manches de la finale) et **équipe complète à 6**.
+
+Seules deux choses sont simulées, parce qu'elles appartiennent à Supabase et
+non à Postgres : `auth.uid()` (remplacé par un paramètre de session) et la
+publication Realtime (aucun effet sur la logique de jeu).
+
+C'est le test à lancer après **toute** modification de `schema.sql` — il ne
+touche à aucune donnée réelle.
+
+```bash
+npm run simulate
+npm run simulate -- -v   # chaque transition de la machine d'état
+```
 
 ### `npm run playtest`
 
