@@ -64,6 +64,9 @@ export function cleanError(error: unknown): string {
   if (raw.includes("JWT") || raw.includes("not authenticated") || raw.includes("28000")) {
     return "Veuillez vous reconnecter.";
   }
+  if (raw.includes("No suitable key") || raw.includes("wrong key type")) {
+    return "La cle Supabase ne correspond pas a ce projet. Verifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.";
+  }
   if (raw.includes("Failed to fetch") || raw.includes("NetworkError")) {
     return "Connexion au serveur impossible. Verifie ta connexion internet.";
   }
@@ -87,7 +90,18 @@ export async function ensureAuth(): Promise<string> {
   if (!authPromise) {
     authPromise = (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData.session?.user?.id) return sessionData.session.user.id;
+      if (sessionData.session?.user?.id) {
+        /*
+         * Une session stockee n'est pas forcement utilisable : elle peut avoir
+         * ete emise par un autre projet Supabase, ou apres une rotation de
+         * cle. getUser() la fait valider par le serveur ; si elle est
+         * refusee, on l'efface et on en cree une neuve, au lieu de laisser le
+         * joueur coince sur un ecran d'erreur dont il ne peut pas sortir.
+         */
+        const { error: probe } = await supabase.auth.getUser();
+        if (!probe) return sessionData.session.user.id;
+        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      }
 
       const { data, error } = await supabase.auth.signInAnonymously();
       if (error) throw new Error(cleanError(error));

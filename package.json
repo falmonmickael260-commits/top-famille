@@ -15,7 +15,10 @@
     "check:supabase": "node scripts/check-supabase.mjs",
     "playtest": "node scripts/playtest.mjs",
     "simulate": "node scripts/simulate.mjs",
-    "push:schema": "node scripts/push-schema.mjs"
+    "push:schema": "node scripts/push-schema.mjs",
+    "stage": "node scripts/stage-game.mjs",
+    "bot": "node scripts/bot.mjs",
+    "demo": "node scripts/demo.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

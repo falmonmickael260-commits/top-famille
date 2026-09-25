@@ -931,13 +931,25 @@ begin
     v_team := coalesce(v_game.control_team, 'R');   -- egalite parfaite
   end if;
 
+  -- Les joueurs encore en ligne d'abord : ce sont eux qui pourront repondre.
   select array_agg(id order by faceoff_count desc, joined_at, id) into v_ids
     from public.tf_players
    where game_id = p_game_id and team = v_team
      and connected and last_seen > now() - public._tf_live_window();
-  if v_ids is null then
-    select array_agg(id order by joined_at, id) into v_ids
-      from public.tf_players where game_id = p_game_id and team = v_team;
+
+  -- Puis on complete avec le reste de l'equipe. Sans ce rattrapage, un seul
+  -- coequipier en ligne au moment de la finale suffisait a faire jouer le
+  -- MEME joueur sur les deux manches — alors que ses coequipiers etaient
+  -- juste en train de rallumer leur telephone. Deux joueurs differents des
+  -- que l'equipe en compte deux.
+  if coalesce(array_length(v_ids, 1), 0) < 2 then
+    select coalesce(v_ids, '{}')
+             || coalesce(array_agg(p.id order by p.faceoff_count desc, p.joined_at, p.id), '{}')
+      into v_ids
+      from public.tf_players p
+     where p.game_id = p_game_id
+       and p.team = v_team
+       and not (p.id = any (coalesce(v_ids, '{}')));
   end if;
 
   select array_agg(id) into v_qs from (

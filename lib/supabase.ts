@@ -20,6 +20,12 @@ export const isSupabaseConfigured = url.startsWith("http") && key.length > 10;
  * machine sans .env.local. On construit donc toujours un client valide, et
  * on bloque en amont via isSupabaseConfigured / ensureAuth().
  */
+/**
+ * La reference du projet, extraite de l'URL. Elle sert a cloisonner la
+ * session stockee (voir storageKey ci-dessous).
+ */
+const projectRef = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ?? "local";
+
 export const supabase = createClient(
   isSupabaseConfigured ? url : "http://localhost:54321",
   isSupabaseConfigured ? key : "public-anon-key-placeholder",
@@ -28,9 +34,18 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      // Cle distincte de taboo-live : les deux jeux partagent le meme projet
-      // Supabase, mais pas la meme session de joueur.
-      storageKey: "top-famille-auth",
+      /*
+       * La cle de stockage porte la reference du projet.
+       *
+       * Sans elle, une session anonyme emise par un AUTRE projet Supabase
+       * (migration, cle regeneree, deux jeux sur la meme machine) restait en
+       * place : le client essayait de rafraichir un jeton signe ailleurs, et
+       * l'app se figeait sur "Connexion impossible — No suitable key or wrong
+       * key type", sans aucune issue pour le joueur. Cloisonner par projet
+       * rend la collision impossible ; ensureAuth() repare en plus les
+       * sessions deja perimees.
+       */
+      storageKey: `top-famille-auth-${projectRef}`,
     },
     // Le buzzer a besoin de passer tout de suite.
     realtime: { params: { eventsPerSecond: 30 } },

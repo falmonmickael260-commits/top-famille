@@ -70,18 +70,30 @@ export function useGame(code: string): UseGame {
 
   const wasDown = useRef(false);
   const tickGuard = useRef(-1);
-  const tickTimer = useRef<number | null>(null);
   const seqRef = useRef(-1);
 
   const game = state?.game ?? null;
   const players = state?.players ?? [];
+
+  /* La boucle de tick lit l'etat dans des refs, jamais dans ses dependances :
+     sinon chaque rafraichissement la recreerait, et le tick programme serait
+     annule avant d'avoir eu le temps de partir (voir l'effet 5). */
+  const gameRef = useRef<Game | null>(null);
+  const playersRef = useRef<Player[]>([]);
+  const offsetRef = useRef(0);
+  gameRef.current = game;
+  playersRef.current = players;
 
   /** Applique une reponse RPC et recale l'horloge sur celle du serveur. */
   const apply = useCallback((next: GameState) => {
     setState(next);
     if (next.serverNow) {
       const server = new Date(next.serverNow).getTime();
-      if (Number.isFinite(server)) setOffsetMs(Date.now() - server);
+      if (Number.isFinite(server)) {
+        const delta = Date.now() - server;
+        offsetRef.current = delta;
+        setOffsetMs(delta);
+      }
     }
   }, []);
 
@@ -233,33 +245,50 @@ export function useGame(code: string): UseGame {
 
   /* ---------------------------------------------------------------- */
   /*  5. Le tick : personne ne doit pouvoir figer le show             */
+  /*                                                                  */
+  /*  Une SEULE boucle, montee une fois pour la partie. C'est le point */
+  /*  important : la version precedente programmait un setTimeout dans */
+  /*  un effet qui dependait de l'etat. Or l'etat se rafraichit sans   */
+  /*  cesse (Realtime, battement de coeur) — le nettoyage de l'effet   */
+  /*  annulait donc le tick avant qu'il ne parte, et le garde          */
+  /*  anti-doublon empechait de le reprogrammer. Resultat : le chrono  */
+  /*  expirait, plus personne n'avancait la machine, et le show se     */
+  /*  figeait definitivement.                                          */
+  /*                                                                  */
+  /*  Ici le retard n'est plus porte par un minuteur annulable mais    */
+  /*  deduit du temps DEJA ecoule depuis l'expiration : l'hote (le     */
+  /*  plateau, en general) part le premier, les telephones servent de  */
+  /*  filet s'il a ferme son onglet, chacun a son tour pour ne pas     */
+  /*  taper le serveur a douze en meme temps. tf_tick etant idempotent, */
+  /*  un seul appel fait effet.                                        */
   /* ---------------------------------------------------------------- */
   useEffect(() => {
-    if (!game || !myId) return;
-    if (game.status === "finished" || !game.phase_ends_at) return;
-    if (remainingMs > 0) return;
-    if (tickGuard.current === game.phase_seq) return;
-    tickGuard.current = game.phase_seq;
+    if (!gameId || !myId) return;
 
-    // L'hote (l'ecran TV, en general) declenche tout de suite. Les telephones
-    // servent de filet s'il a ferme son onglet, chacun a son tour pour ne pas
-    // taper le serveur a douze en meme temps.
-    const isHostHere = game.host_player_id === myId;
-    const index = Math.max(0, players.findIndex((p) => p.id === myId));
-    const delay = isHostHere ? TICK_GRACE_MS : 700 + index * 400;
+    const iv = window.setInterval(() => {
+      const g = gameRef.current;
+      if (!g || g.status === "finished" || !g.phase_ends_at) return;
+      if (tickGuard.current === g.phase_seq) return;
 
-    tickTimer.current = window.setTimeout(() => {
+      const endsAt = new Date(g.phase_ends_at).getTime();
+      const expiredFor = Date.now() - offsetRef.current - endsAt;
+      if (expiredFor < 0) return;
+
+      const isHostHere = g.host_player_id === myId;
+      const index = Math.max(0, playersRef.current.findIndex((p) => p.id === myId));
+      const wait = isHostHere ? TICK_GRACE_MS : 700 + index * 400;
+      if (expiredFor < wait) return;
+
+      tickGuard.current = g.phase_seq;
       tickRpc(code)
         .then(apply)
         .catch(() => {
-          tickGuard.current = -1; // on pourra retenter
+          tickGuard.current = -1; // on pourra retenter au tour suivant
         });
-    }, delay);
+    }, 250);
 
-    return () => {
-      if (tickTimer.current) window.clearTimeout(tickTimer.current);
-    };
-  }, [game, remainingMs, myId, players, code, apply]);
+    return () => window.clearInterval(iv);
+  }, [gameId, myId, code, apply]);
 
   /* ---------------------------------------------------------------- */
   /*  6. Le beat a animer                                             */

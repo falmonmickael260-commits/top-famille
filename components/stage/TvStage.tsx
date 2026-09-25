@@ -111,6 +111,10 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
 
   const activeName = playerName(players, game.active_player_id ?? game.buzz_winner);
 
+  /* Le lobby (podiums d'arrivee) et la victoire (palmares) affichent deja les
+     deux equipes : les colonnes laterales du plateau feraient doublon. */
+  const showRosters = phase !== "LOBBY" && phase !== "VICTORY";
+
   return (
     <main className="relative min-h-dvh overflow-hidden" onPointerDown={() => initAudio()}>
       <Studio accent={accent} />
@@ -170,9 +174,15 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
         )}
 
         {/* ---------- Le plateau ---------- */}
-        <div className="grid flex-1 gap-3 lg:grid-cols-[minmax(11rem,15%)_1fr_minmax(11rem,15%)]">
+        <div
+          className={`grid flex-1 gap-3 ${
+            showRosters ? "lg:grid-cols-[minmax(11rem,15%)_1fr_minmax(11rem,15%)]" : ""
+          }`}
+        >
           {/* Podiums rouge */}
-          <aside className="panel order-2 hidden p-3 lg:order-1 lg:block">
+          <aside
+            className={`panel order-2 hidden p-3 lg:order-1 ${showRosters ? "lg:block" : ""}`}
+          >
             <Roster
               team="R"
               players={teamR}
@@ -303,7 +313,7 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
           </section>
 
           {/* Podiums bleu */}
-          <aside className="panel order-3 hidden p-3 lg:block">
+          <aside className={`panel order-3 hidden p-3 ${showRosters ? "lg:block" : ""}`}>
             <Roster
               team="B"
               players={teamB}
@@ -316,7 +326,9 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
           </aside>
 
           {/* Sur un ecran etroit, les deux equipes passent sous le plateau. */}
-          <div className="order-4 grid grid-cols-2 gap-3 lg:hidden">
+          <div
+            className={`order-4 grid-cols-2 gap-3 lg:hidden ${showRosters ? "grid" : "hidden"}`}
+          >
             <div className="panel p-3">
               <Roster
                 team="R"

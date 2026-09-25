@@ -371,6 +371,9 @@ consommation, voiture, travail, école, fêtes, sorties, voyages, habitudes.
 | `npm run check:supabase` | diagnostic de connexion et de sécurité |
 | `npm run simulate` | **le schéma exécuté dans Postgres/WASM, hors ligne** |
 | `npm run playtest` | **une partie complète jouée par des robots, sur Supabase** |
+| `npm run demo` | une partie de démonstration jouée toute seule, à regarder |
+| `npm run bot` | un joueur robot, pour compléter les équipes |
+| `npm run stage` | met une partie dans un état donné, pour travailler le plateau |
 
 ### `npm run simulate`
 
@@ -434,6 +437,32 @@ npm run playtest -- --verbose # chaque transition
 ```
 
 ---
+
+### Voir le show sans réunir six téléphones
+
+```bash
+npm run demo
+```
+
+Crée une partie, y fait entrer six robots, lance le show et joue **jusqu'à la
+victoire** — avec de vrais temps de réflexion, des fautes, des vols réussis et
+ratés. Il affiche l'URL du plateau dès le départ : ouvre-la sur la télévision
+et regarde. C'est la façon la plus rapide de voir l'ensemble.
+
+Pour jouer soi-même en complétant les équipes :
+
+```bash
+npm run bot -- TF-4827 Sarah B --play        # un coéquipier robot
+npm run bot -- TF-4827 Kevin B --level mixed # qui se trompe une fois sur trois
+npm run bot -- TF-4827 Julie R               # présent, mais qui ne joue pas
+```
+
+Et pour travailler le plateau sur une partie déjà bien avancée (question
+posée, trois réponses ouvertes, une faute au compteur) :
+
+```bash
+npm run stage
+```
 
 ## Tester le multijoueur à la main
 
