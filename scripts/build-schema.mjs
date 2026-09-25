@@ -117,3 +117,39 @@ writeFileSync(schemaPath, sql);
 console.log(
   `schema.sql : ${data.questions.length} questions, ${arows.length} reponses injectees.`
 );
+
+/*
+ * On ecrit aussi le fichier en DEUX MOITIES.
+ *
+ * schema.sql fait ~240 Ko, dont 90 % de questions : coller tout d'un bloc
+ * dans le SQL Editor marche, mais c'est lourd dans un navigateur. Ces deux
+ * fichiers contiennent exactement le meme SQL, decoupe au marqueur des
+ * questions, et s'executent dans l'ordre. Ils sont regeneres ici pour ne
+ * jamais divercher de schema.sql.
+ */
+const cut = sql.indexOf(START);
+const header = sql.slice(0, cut);
+const questions = sql.slice(cut);
+
+const NOTE = (n, what) =>
+  `-- =====================================================================\n` +
+  `--  TOP FAMILLE - schema, partie ${n} sur 2 : ${what}\n` +
+  `--  by Lewishalmito\n` +
+  `--\n` +
+  `--  Genere par : npm run build:schema — ne pas editer a la main.\n` +
+  `--  Meme contenu que supabase/schema.sql, coupe en deux pour un\n` +
+  `--  copier-coller plus leger dans le SQL Editor. A executer DANS L'ORDRE :\n` +
+  `--  partie 1, puis partie 2. Les deux sont idempotentes.\n` +
+  `-- =====================================================================\n\n`;
+
+writeFileSync(
+  join(root, "supabase/schema.part1-structure.sql"),
+  NOTE(1, "tables, securite, machine d'etat") + header
+);
+writeFileSync(
+  join(root, "supabase/schema.part2-questions.sql"),
+  NOTE(2, `les ${data.questions.length} questions du panel`) + questions
+);
+console.log(
+  "parties : supabase/schema.part1-structure.sql + schema.part2-questions.sql"
+);

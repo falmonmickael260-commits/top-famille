@@ -45,9 +45,36 @@ fonctions SQL, pas sur le secret de la clé.
 
 ### 3. Le schéma SQL — l'étape qui ne peut pas être sautée
 
+Trois façons, au choix.
+
+**À la main** (rien à partager, ~30 s) :
+
 1. Supabase Dashboard → **SQL Editor → New query**
 2. Colle **l'intégralité** de [`supabase/schema.sql`](supabase/schema.sql)
 3. **Run**
+
+Le fichier fait 240 Ko, dont 90 % de questions. Si le navigateur peine sur un
+paste aussi gros, les deux moitiés sont générées à côté — même SQL, à exécuter
+**dans l'ordre** :
+
+- [`supabase/schema.part1-structure.sql`](supabase/schema.part1-structure.sql) (85 Ko)
+- [`supabase/schema.part2-questions.sql`](supabase/schema.part2-questions.sql) (157 Ko)
+
+**En une commande**, avec l'URL de connexion Postgres
+(Supabase → *Connect* → URI) :
+
+```bash
+SUPABASE_DB_URL='postgresql://postgres.<ref>:<mdp>@<host>:5432/postgres' npm run push:schema
+```
+
+**Ou avec un jeton d'accès personnel** (Supabase → *Account* → *Access Tokens*) :
+
+```bash
+SUPABASE_ACCESS_TOKEN=sbp_xxx npm run push:schema
+```
+
+`npm run push:schema` sans rien affiche ces options et l'URL exacte du SQL
+Editor de ton projet.
 
 Le fichier est **idempotent** : on peut le rejouer sans rien casser. Il crée
 d'un coup :
@@ -339,7 +366,8 @@ consommation, voiture, travail, école, fêtes, sorties, voyages, habitudes.
 | `npm start` | sert le build de production |
 | `npm run typecheck` | TypeScript seul |
 | `npm run validate:questions` | garde-fou qualité du panel |
-| `npm run build:schema` | réinjecte `questions.json` dans `schema.sql` |
+| `npm run build:schema` | réinjecte `questions.json` dans `schema.sql` et régénère les deux moitiés |
+| `npm run push:schema` | envoie `schema.sql` dans Supabase (URL Postgres ou jeton) |
 | `npm run check:supabase` | diagnostic de connexion et de sécurité |
 | `npm run simulate` | **le schéma exécuté dans Postgres/WASM, hors ligne** |
 | `npm run playtest` | **une partie complète jouée par des robots, sur Supabase** |
