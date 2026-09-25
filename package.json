@@ -1,0 +1,36 @@
+{
+  "name": "top-famille",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TOP FAMILLE - jeu televise multijoueur temps reel (Next.js 15 + Supabase Realtime) - by Lewishalmito",
+  "author": "Lewishalmito",
+  "scripts": {
+    "dev": "next dev",
+    "build": "npm run validate:questions && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "validate:questions": "node scripts/validate-questions.mjs",
+    "build:schema": "node scripts/build-schema.mjs",
+    "check:supabase": "node scripts/check-supabase.mjs",
+    "playtest": "node scripts/playtest.mjs",
+    "simulate": "node scripts/simulate.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "framer-motion": "^11.15.0",
+    "next": "^15.5.26",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^20.14.10",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}

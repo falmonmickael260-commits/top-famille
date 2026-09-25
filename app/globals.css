@@ -1,0 +1,898 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   TOP FAMILLE - le plateau
+   by Lewishalmito
+
+   Tout le decor est dessine ici : pas une seule image, pas un seul asset.
+   Le studio est fait de degrades, de coniques, de filets lumineux et de
+   reflets. Consequence pratique : ca se charge instantanement et ca reste
+   net sur une television 4K comme sur un telephone.
+   ===================================================================== */
+
+:root {
+  --font-display: "Anton", "Archivo Black", "Haettenschweiler", "Impact",
+    system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --stage-950: #03060f;
+  --stage-900: #060b1c;
+  --stage-800: #0a1330;
+  --stage-700: #101c48;
+  --electric: #2f7bff;
+  --electric-soft: #6aa5ff;
+  --gold: #f5c344;
+  --gold-soft: #ffe08a;
+  --team-r: #ff3b5c;
+  --team-b: #38a8ff;
+
+  /* Cadrage camera : les scenes s'appuient dessus pour zoomer / reculer. */
+  --cam-scale: 1;
+  --cam-x: 0px;
+  --cam-y: 0px;
+  --cam-blur: 0px;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  background: var(--stage-950);
+  color: #eef3ff;
+  font-family: var(--font-body);
+  overscroll-behavior: none;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* Les chiffres d'un plateau TV ne doivent jamais danser en largeur. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ---------------------------------------------------------------------
+   1. LE STUDIO
+   --------------------------------------------------------------------- */
+
+.studio {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Le fond : bleu profond, plus clair au centre, comme un cyclo eclaire. */
+.studio-floor {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      120% 80% at 50% 8%,
+      rgba(47, 123, 255, 0.28) 0%,
+      rgba(16, 28, 72, 0.6) 38%,
+      transparent 70%
+    ),
+    radial-gradient(100% 60% at 50% 100%, rgba(47, 123, 255, 0.16) 0%, transparent 62%),
+    linear-gradient(180deg, #03060f 0%, #060b1c 42%, #0a1330 72%, #04070f 100%);
+  transition: background 900ms ease;
+}
+
+/* Rouge / bleu quand une equipe prend le dessus : le decor change avec le jeu. */
+.studio[data-accent="R"] .studio-floor {
+  background:
+    radial-gradient(
+      120% 80% at 50% 8%,
+      rgba(255, 59, 92, 0.3) 0%,
+      rgba(72, 16, 34, 0.5) 38%,
+      transparent 70%
+    ),
+    radial-gradient(100% 60% at 50% 100%, rgba(255, 59, 92, 0.18) 0%, transparent 62%),
+    linear-gradient(180deg, #0f0409 0%, #1c0610 42%, #300a18 72%, #0b0207 100%);
+}
+
+.studio[data-accent="B"] .studio-floor {
+  background:
+    radial-gradient(
+      120% 80% at 50% 8%,
+      rgba(56, 168, 255, 0.32) 0%,
+      rgba(16, 48, 96, 0.5) 38%,
+      transparent 70%
+    ),
+    radial-gradient(100% 60% at 50% 100%, rgba(56, 168, 255, 0.18) 0%, transparent 62%),
+    linear-gradient(180deg, #030a12 0%, #051426 42%, #08233f 72%, #02070e 100%);
+}
+
+.studio[data-accent="GOLD"] .studio-floor {
+  background:
+    radial-gradient(
+      120% 80% at 50% 8%,
+      rgba(245, 195, 68, 0.3) 0%,
+      rgba(72, 54, 10, 0.5) 38%,
+      transparent 70%
+    ),
+    radial-gradient(100% 60% at 50% 100%, rgba(245, 195, 68, 0.2) 0%, transparent 62%),
+    linear-gradient(180deg, #0d0a03 0%, #1a1305 42%, #2b2008 72%, #0a0702 100%);
+}
+
+/* La grille du sol, en perspective. C'est elle qui donne la profondeur. */
+.studio-grid {
+  position: absolute;
+  left: -30%;
+  right: -30%;
+  bottom: -12%;
+  height: 58%;
+  background-image:
+    linear-gradient(to right, rgba(120, 170, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(120, 170, 255, 0.1) 1px, transparent 1px);
+  background-size: 8% 14%;
+  transform: perspective(520px) rotateX(64deg);
+  transform-origin: bottom center;
+  mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 85%);
+  opacity: 0.85;
+}
+
+/* Le sol reflechissant : une bande claire, floue, qui monte du bas. */
+.studio-reflect {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background: linear-gradient(
+    to top,
+    rgba(160, 200, 255, 0.14) 0%,
+    rgba(120, 170, 255, 0.05) 40%,
+    transparent 100%
+  );
+  filter: blur(14px);
+}
+
+/* Les projecteurs : deux cones qui balaient lentement. */
+.spot {
+  position: absolute;
+  top: -22%;
+  width: 46vmax;
+  height: 130vmax;
+  background: conic-gradient(
+    from 180deg at 50% 0%,
+    transparent 0deg,
+    rgba(150, 195, 255, 0.13) 6deg,
+    rgba(150, 195, 255, 0.05) 13deg,
+    transparent 20deg
+  );
+  filter: blur(6px);
+  transform-origin: 50% 0%;
+  mix-blend-mode: screen;
+}
+
+.spot-a {
+  left: 6%;
+  animation: sweep-a 13s ease-in-out infinite;
+}
+.spot-b {
+  right: 6%;
+  animation: sweep-b 17s ease-in-out infinite;
+}
+.spot-c {
+  left: 50%;
+  margin-left: -23vmax;
+  opacity: 0.55;
+  animation: sweep-c 21s ease-in-out infinite;
+}
+
+@keyframes sweep-a {
+  0%, 100% { transform: rotate(14deg); }
+  50% { transform: rotate(38deg); }
+}
+@keyframes sweep-b {
+  0%, 100% { transform: rotate(-38deg); }
+  50% { transform: rotate(-12deg); }
+}
+@keyframes sweep-c {
+  0%, 100% { transform: rotate(-9deg) scaleY(0.9); }
+  50% { transform: rotate(9deg) scaleY(1); }
+}
+
+/* Les rampes LED, en haut et sur les cotes. */
+.led-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--team-r) 8%,
+    var(--electric) 30%,
+    var(--gold) 50%,
+    var(--electric) 70%,
+    var(--team-b) 92%,
+    transparent
+  );
+  opacity: 0.9;
+  box-shadow: 0 0 26px rgba(47, 123, 255, 0.6);
+}
+
+.led-rail {
+  position: absolute;
+  top: 8%;
+  bottom: 22%;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    currentColor 18%,
+    currentColor 82%,
+    transparent
+  );
+  opacity: 0.32;
+  filter: blur(1px);
+  animation: rail-pulse 3.6s ease-in-out infinite;
+}
+.led-rail-l { left: 2.2%; color: var(--team-r); }
+.led-rail-r { right: 2.2%; color: var(--team-b); animation-delay: 1.8s; }
+
+@keyframes rail-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.55; }
+}
+
+/* Vignettage : on regarde une image de television, pas une page web. */
+.studio-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    115% 85% at 50% 45%,
+    transparent 42%,
+    rgba(0, 0, 0, 0.55) 88%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+}
+
+/* Scanlines tres discretes : la texture "diffusion". */
+.studio-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.022) 0px,
+    rgba(255, 255, 255, 0.022) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------------
+   2. CAMERA
+   La scene entiere vit dans .cam : les cadrages du script (duel, gros
+   plan, tableau, large) ne font que changer trois variables.
+   --------------------------------------------------------------------- */
+
+.cam {
+  position: relative;
+  z-index: 1;
+  transform: translate3d(var(--cam-x), var(--cam-y), 0) scale(var(--cam-scale));
+  filter: blur(var(--cam-blur));
+  transition:
+    transform 780ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 600ms ease;
+  will-change: transform;
+}
+
+.cam[data-shot="wide"]    { --cam-scale: 1;    --cam-y: 0px; }
+.cam[data-shot="duel"]    { --cam-scale: 1.08; --cam-y: 10px; }
+.cam[data-shot="closeup"] { --cam-scale: 1.16; --cam-y: 18px; }
+.cam[data-shot="board"]   { --cam-scale: 1.04; --cam-y: -6px; }
+.cam[data-shot="teams"]   { --cam-scale: 1.02; --cam-y: 4px; }
+.cam[data-shot="finale"]  { --cam-scale: 1.07; --cam-y: 6px; }
+.cam[data-shot="victory"] { --cam-scale: 0.96; --cam-y: -10px; }
+
+/* Petit soubresaut de camera sur un impact (faute, buzz, vol). */
+@keyframes cam-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  15% { transform: translate3d(-7px, 3px, 0) rotate(-0.35deg); }
+  35% { transform: translate3d(6px, -4px, 0) rotate(0.3deg); }
+  55% { transform: translate3d(-4px, 2px, 0); }
+  80% { transform: translate3d(3px, -1px, 0); }
+}
+.shake { animation: cam-shake 460ms cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+/* ---------------------------------------------------------------------
+   3. TYPOGRAPHIE DE PLATEAU
+   --------------------------------------------------------------------- */
+
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+  line-height: 0.88;
+  text-transform: uppercase;
+}
+
+/* Le logo : or brosse + reflet qui passe. */
+.wordmark {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  line-height: 0.82;
+  background: linear-gradient(
+    98deg,
+    #b8860a 0%,
+    var(--gold) 22%,
+    #fff6d8 44%,
+    var(--gold-soft) 58%,
+    var(--gold) 74%,
+    #8a6207 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 26px rgba(245, 195, 68, 0.35));
+}
+
+.wordmark-sheen {
+  animation: sheen 3.4s ease-in-out infinite;
+}
+@keyframes sheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.byline {
+  font-family: var(--font-mono);
+  letter-spacing: 0.44em;
+  text-transform: uppercase;
+  color: rgba(238, 243, 255, 0.72);
+}
+
+.neon {
+  text-shadow:
+    0 0 10px rgba(106, 165, 255, 0.55),
+    0 0 34px rgba(47, 123, 255, 0.4);
+}
+.neon-gold {
+  text-shadow:
+    0 0 12px rgba(245, 195, 68, 0.6),
+    0 0 40px rgba(245, 195, 68, 0.35);
+}
+.neon-r { text-shadow: 0 0 12px rgba(255, 59, 92, 0.6), 0 0 42px rgba(255, 59, 92, 0.35); }
+.neon-b { text-shadow: 0 0 12px rgba(56, 168, 255, 0.6), 0 0 42px rgba(56, 168, 255, 0.35); }
+
+/* ---------------------------------------------------------------------
+   4. SURFACES
+   --------------------------------------------------------------------- */
+
+.panel {
+  position: relative;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)),
+    rgba(6, 11, 28, 0.72);
+  border: 1px solid rgba(150, 190, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 24px 60px -28px rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+/* Variante opaque, pour tout ce qui se pose PAR-DESSUS le plateau : un
+   panneau translucide laisse passer les boutons dores et les projecteurs, et
+   le texte devient illisible. */
+.panel-solid {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01)),
+    rgba(4, 8, 20, 0.985);
+  backdrop-filter: blur(18px);
+}
+
+/* Le grand ecran central : un vrai mur de LED, avec sa trame. */
+.screen {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.035) 0px,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(180deg, rgba(20, 44, 110, 0.85), rgba(4, 9, 24, 0.94));
+  border: 1px solid rgba(150, 190, 255, 0.26);
+  box-shadow:
+    inset 0 0 70px rgba(47, 123, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 34px 80px -34px rgba(0, 0, 0, 0.95);
+}
+
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    114deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.07) 48%,
+    transparent 58%
+  );
+  pointer-events: none;
+}
+
+/* Le podium d'un joueur. */
+.podium {
+  position: relative;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(160, 195, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 14px 30px -18px rgba(0, 0, 0, 0.9);
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 260ms ease;
+}
+
+.podium[data-team="R"] { border-color: rgba(255, 59, 92, 0.38); }
+.podium[data-team="B"] { border-color: rgba(56, 168, 255, 0.38); }
+
+.podium[data-active="true"] {
+  transform: translateY(-4px) scale(1.035);
+}
+.podium[data-team="R"][data-active="true"] {
+  box-shadow: 0 0 0 1px var(--team-r), 0 0 44px -6px rgba(255, 59, 92, 0.7);
+}
+.podium[data-team="B"][data-active="true"] {
+  box-shadow: 0 0 0 1px var(--team-b), 0 0 44px -6px rgba(56, 168, 255, 0.7);
+}
+.podium[data-off="true"] { opacity: 0.38; filter: grayscale(0.55); }
+
+/* ---------------------------------------------------------------------
+   5. BOUTONS
+   --------------------------------------------------------------------- */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.95rem 1.5rem;
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms ease,
+    filter 200ms ease;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.28) 48%,
+    transparent 66%
+  );
+  transform: translateX(-120%);
+  transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: -1;
+}
+.btn:hover::before { transform: translateX(120%); }
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(1px) scale(0.985); }
+.btn:disabled { opacity: 0.45; transform: none; filter: saturate(0.5); cursor: not-allowed; }
+.btn:disabled::before { display: none; }
+
+.btn-gold {
+  background: linear-gradient(180deg, var(--gold-soft), var(--gold) 55%, #c98f0c);
+  color: #1b1200;
+  box-shadow: 0 0 0 1px rgba(255, 224, 138, 0.5), 0 18px 44px -16px rgba(245, 195, 68, 0.6);
+}
+.btn-gold:hover { box-shadow: 0 0 0 1px rgba(255, 240, 200, 0.7), 0 22px 56px -14px rgba(245, 195, 68, 0.8); }
+
+.btn-blue {
+  background: linear-gradient(180deg, #4d93ff, var(--electric) 55%, #123f9e);
+  color: #f2f7ff;
+  box-shadow: 0 0 0 1px rgba(122, 173, 255, 0.45), 0 18px 44px -16px rgba(47, 123, 255, 0.6);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(238, 243, 255, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(160, 195, 255, 0.2);
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+
+.btn-r {
+  background: linear-gradient(180deg, #ff7189, var(--team-r) 55%, #a3072a);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 128, 149, 0.5), 0 18px 44px -16px rgba(255, 59, 92, 0.65);
+}
+.btn-b {
+  background: linear-gradient(180deg, #7ac6ff, var(--team-b) 55%, #0b5ba8);
+  color: #062038;
+  box-shadow: 0 0 0 1px rgba(143, 208, 255, 0.5), 0 18px 44px -16px rgba(56, 168, 255, 0.65);
+}
+
+/* LE BUZZER. Gros, rond, et il respire tant qu'il est armé. */
+.buzzer {
+  position: relative;
+  width: min(66vw, 17rem);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: none;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 11vw, 3.6rem);
+  letter-spacing: 0.02em;
+  color: #fff;
+  background:
+    radial-gradient(circle at 50% 32%, #ff93a6 0%, #ff3b5c 45%, #8e0421 100%);
+  box-shadow:
+    inset 0 -14px 34px rgba(0, 0, 0, 0.45),
+    inset 0 10px 22px rgba(255, 255, 255, 0.4),
+    0 0 0 8px rgba(255, 59, 92, 0.16),
+    0 0 90px -10px rgba(255, 59, 92, 0.85),
+    0 26px 44px -18px rgba(0, 0, 0, 0.9);
+  transition: transform 90ms ease, box-shadow 160ms ease;
+  animation: buzz-breathe 1.5s ease-in-out infinite;
+}
+
+.buzzer:active {
+  transform: scale(0.9) translateY(6px);
+  box-shadow:
+    inset 0 -6px 18px rgba(0, 0, 0, 0.6),
+    inset 0 6px 14px rgba(255, 255, 255, 0.28),
+    0 0 0 4px rgba(255, 59, 92, 0.2),
+    0 0 60px -14px rgba(255, 59, 92, 0.8);
+  animation: none;
+}
+
+.buzzer:disabled {
+  animation: none;
+  filter: grayscale(0.7) brightness(0.55);
+  box-shadow: inset 0 -10px 24px rgba(0, 0, 0, 0.5), 0 0 0 6px rgba(255, 255, 255, 0.04);
+}
+
+@keyframes buzz-breathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 -14px 34px rgba(0, 0, 0, 0.45),
+      inset 0 10px 22px rgba(255, 255, 255, 0.4),
+      0 0 0 8px rgba(255, 59, 92, 0.16),
+      0 0 80px -12px rgba(255, 59, 92, 0.75),
+      0 26px 44px -18px rgba(0, 0, 0, 0.9);
+  }
+  50% {
+    transform: scale(1.045);
+    box-shadow:
+      inset 0 -14px 34px rgba(0, 0, 0, 0.45),
+      inset 0 10px 22px rgba(255, 255, 255, 0.45),
+      0 0 0 14px rgba(255, 59, 92, 0.1),
+      0 0 120px -6px rgba(255, 59, 92, 0.95),
+      0 26px 44px -18px rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   6. CHAMPS
+   --------------------------------------------------------------------- */
+
+.field {
+  width: 100%;
+  border-radius: 14px;
+  background: rgba(3, 7, 18, 0.7);
+  border: 1px solid rgba(160, 195, 255, 0.24);
+  padding: 0.95rem 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #eef3ff;
+  outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.field::placeholder { color: rgba(238, 243, 255, 0.34); font-weight: 500; }
+.field:focus {
+  border-color: rgba(106, 165, 255, 0.7);
+  box-shadow: 0 0 0 4px rgba(47, 123, 255, 0.18);
+}
+
+.field-xl {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 7vw, 2.1rem);
+  text-align: center;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1.05rem 1rem;
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(238, 243, 255, 0.5);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* ---------------------------------------------------------------------
+   7. LE TABLEAU DES REPONSES
+   --------------------------------------------------------------------- */
+
+.slot {
+  position: relative;
+  height: clamp(3rem, 7.2vh, 4.4rem);
+  border-radius: 12px;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  perspective: 900px;
+}
+
+/* La face cachee : bandes LED sombres et son numero. */
+.slot-back {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(150, 190, 255, 0.1) 0px,
+      rgba(150, 190, 255, 0.1) 2px,
+      transparent 2px,
+      transparent 7px
+    ),
+    linear-gradient(180deg, rgba(23, 39, 95, 0.95), rgba(8, 15, 38, 0.98));
+  border: 1px solid rgba(150, 190, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backface-visibility: hidden;
+  transition: transform 520ms cubic-bezier(0.34, 1.4, 0.44, 1);
+}
+
+.slot-front {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.7rem 0 0.9rem;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
+    linear-gradient(180deg, rgba(20, 44, 110, 0.9), rgba(6, 12, 32, 0.95));
+  border: 1px solid rgba(245, 195, 68, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 30px -8px rgba(245, 195, 68, 0.4);
+  transform: rotateX(90deg);
+  backface-visibility: hidden;
+  transition: transform 520ms cubic-bezier(0.34, 1.4, 0.44, 1);
+}
+
+.slot[data-open="true"] .slot-back { transform: rotateX(-90deg); }
+.slot[data-open="true"] .slot-front { transform: rotateX(0deg); }
+
+.slot[data-team="R"] .slot-front {
+  border-color: rgba(255, 59, 92, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 34px -8px rgba(255, 59, 92, 0.55);
+}
+.slot[data-team="B"] .slot-front {
+  border-color: rgba(56, 168, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 34px -8px rgba(56, 168, 255, 0.55);
+}
+/* Devoilee en fin de manche, jamais trouvee : pas de fete, juste l'info. */
+.slot[data-missed="true"] .slot-front {
+  border-color: rgba(150, 190, 255, 0.2);
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+/* Le flash au moment de l'ouverture. */
+.slot-flash {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, transparent 60%);
+  opacity: 0;
+  pointer-events: none;
+}
+.slot[data-just="true"] .slot-flash { animation: slot-flash 620ms ease-out; }
+@keyframes slot-flash {
+  0% { opacity: 0.85; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+
+/* ---------------------------------------------------------------------
+   8. FAUTES
+   --------------------------------------------------------------------- */
+
+.strike {
+  width: clamp(2.2rem, 5.4vw, 3.4rem);
+  aspect-ratio: 1;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3.4vw, 2.1rem);
+  color: rgba(238, 243, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(160, 195, 255, 0.16);
+  transition: all 220ms ease;
+}
+
+.strike[data-on="true"] {
+  color: #fff;
+  background: linear-gradient(180deg, #ff7189, var(--team-r) 60%, #8e0421);
+  box-shadow: 0 0 0 1px rgba(255, 128, 149, 0.6), 0 0 42px -6px rgba(255, 59, 92, 0.9);
+  animation: strike-in 460ms cubic-bezier(0.34, 1.56, 0.44, 1);
+}
+
+@keyframes strike-in {
+  0% { transform: scale(2.4) rotate(-14deg); opacity: 0; }
+  60% { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* ---------------------------------------------------------------------
+   9. BANDEAUX PLEIN ECRAN
+   --------------------------------------------------------------------- */
+
+.slam {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: radial-gradient(60% 50% at 50% 50%, rgba(3, 6, 15, 0.6), rgba(3, 6, 15, 0.9));
+  backdrop-filter: blur(3px);
+  animation: slam-bg 2200ms ease forwards;
+}
+@keyframes slam-bg {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.slam-text {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 11vw, 8rem);
+  text-align: center;
+  line-height: 0.9;
+  padding: 0 4vw;
+  animation: slam-in 2200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes slam-in {
+  0% { transform: scale(2.6) rotate(-3deg); opacity: 0; filter: blur(14px); }
+  14% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+  76% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1.18); opacity: 0; filter: blur(6px); }
+}
+
+/* ---------------------------------------------------------------------
+   10. ANIMATIONS D'ENTREE
+   --------------------------------------------------------------------- */
+
+@keyframes pop {
+  0% { transform: scale(0.9) translateY(10px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.pop { animation: pop 380ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes rise {
+  0% { transform: translateY(22px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.rise { animation: rise 460ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes drop-in {
+  0% { transform: translateY(-40px) scale(1.06); opacity: 0; }
+  70% { transform: translateY(4px) scale(0.99); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.drop-in { animation: drop-in 560ms cubic-bezier(0.34, 1.4, 0.44, 1) both; }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }
+
+/* Le compteur qui grimpe : on anime la couleur, le chiffre est en JS. */
+@keyframes score-bump {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.22); filter: brightness(1.5); }
+  100% { transform: scale(1); }
+}
+.score-bump { animation: score-bump 620ms cubic-bezier(0.34, 1.56, 0.44, 1); }
+
+/* Les points qui s'envolent d'un compteur vers l'autre (vol de manche). */
+@keyframes steal-fly {
+  0% { transform: translate(0, 0) scale(1); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(var(--fly-x), var(--fly-y)) scale(0.55); opacity: 0; }
+}
+.steal-fly {
+  animation: steal-fly 1250ms cubic-bezier(0.5, 0, 0.6, 1) forwards;
+}
+
+/* Barre de chrono. */
+.timer-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.timer-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-soft));
+  box-shadow: 0 0 18px rgba(245, 195, 68, 0.7);
+  transition: width 120ms linear, background 300ms ease;
+}
+.timer-fill[data-danger="true"] {
+  background: linear-gradient(90deg, #ff3b5c, #ff8095);
+  box-shadow: 0 0 22px rgba(255, 59, 92, 0.85);
+}
+
+/* ---------------------------------------------------------------------
+   11. TELEPHONE
+   --------------------------------------------------------------------- */
+
+/* Sur un telephone, l'etat "c'est ton tour" doit se voir de loin, posé
+   sur la table, en un dixieme de seconde. */
+.remote {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  transition: background 500ms ease;
+}
+.remote[data-mode="turn"] {
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(245, 195, 68, 0.22), transparent 62%),
+    var(--stage-950);
+}
+.remote[data-mode="buzz"] {
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(255, 59, 92, 0.26), transparent 62%),
+    var(--stage-950);
+}
+.remote[data-mode="wait"] { background: var(--stage-950); }
+
+/* ---------------------------------------------------------------------
+   12. ACCESSIBILITE
+   --------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .spot-a, .spot-b, .spot-c,
+  .led-rail,
+  .wordmark-sheen,
+  .buzzer,
+  .pulse-soft {
+    animation: none !important;
+  }
+  .cam { transition: none; }
+  .slot-back, .slot-front { transition-duration: 1ms; }
+  .studio-grid { transform: none; opacity: 0.3; }
+}
+
+/* Barres de defilement discretes, y compris sur la television. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 190, 255, 0.22);
+  border-radius: 999px;
+}
