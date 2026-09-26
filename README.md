@@ -14,7 +14,7 @@ Supabase (Auth anonyme, Postgres, Realtime) · déployé sur Vercel.
 |---|---|
 | En ligne | <https://top-famille.vercel.app> |
 | Dépôt | <https://github.com/falmonmickael260-commits/top-famille> |
-| Supabase | projet dédié `wfguhfovryflzwtgpjdb` |
+| Supabase | projet dédié `ipxmzyjweggidyjinein` (`eu-west-1`) |
 
 ---
 
@@ -476,15 +476,20 @@ buzz jusqu'à « c'est toi qui réponds », la réponse jusqu'au verdict, et
 surtout la **propagation** — le délai entre le geste d'un joueur et le moment
 où les autres téléphones l'apprennent, par Realtime.
 
-Relevé sur le projet actuel (`eu-west-1`) :
+Relevé sur le projet de production (`eu-west-1`) :
 
 | | médiane | p95 |
 |---|---|---|
-| plancher réseau | 113 ms | 227 ms |
-| lire l'état | 116 ms | 160 ms |
-| buzz → j'ai la main | 167 ms | 527 ms |
-| réponse → verdict | 238 ms | 574 ms |
-| **propagation aux autres** | **236 ms** | 574 ms |
+| plancher réseau | 121 ms | 416 ms |
+| lire l'état | 105 ms | 179 ms |
+| **buzz** (aller-retour) | **95 ms** | 167 ms |
+| **réponse** (aller-retour) | **108 ms** | 184 ms |
+| avancer une phase | 103 ms | 173 ms |
+| écho aux autres écrans | 239 ms | 511 ms |
+
+Le buzz coûte le prix d'un aller-retour réseau, pas un de plus. L'écho aux
+autres écrans est mesuré **séparément** : il arrive forcément après la réponse
+à l'appel, les confondre donnerait un buzz artificiellement lent.
 
 La lecture d'état coûte autant qu'un `select` trivial : le SQL est gratuit,
 tout est du temps réseau. C'est pour ça que le travail d'optimisation a porté

@@ -8,15 +8,16 @@
  * Mesure ce que le joueur ressent reellement, geste par geste :
  *
  *   plancher reseau      un aller-retour vide vers Supabase
- *   buzz                 du doigt jusqu'a « c'est toi qui reponds »
- *   reponse              de la validation jusqu'au verdict du serveur
- *   propagation          du moment ou un joueur agit jusqu'a ce que les
- *                        AUTRES telephones le sachent — par Realtime, sans
- *                        interroger le serveur
- *   tick                 l'avancement d'une phase expiree
+ *   buzz                 l'aller-retour de tf_buzz, ce que le joueur attend
+ *                        avant de voir « a toi de repondre »
+ *   reponse              l'aller-retour de tf_submit, jusqu'au verdict
+ *   avancer une phase    tf_host_skip, l'avancement d'une phase expiree
+ *   echo aux autres      le moment ou les AUTRES ecrans l'apprennent, par
+ *                        Realtime, sans rien demander au serveur
  *
- * La propagation est la mesure qui compte pour un jeu de buzzer : c'est le
- * delai entre le geste d'un joueur et la reaction du plateau.
+ * Les deux dernieres sont mesurees SEPAREMENT : l'echo Realtime arrive
+ * forcement apres la reponse a l'appel, les confondre donnerait un buzz
+ * artificiellement lent.
  *
  * Chaque chiffre est donne en mediane et en p95 : la mediane dit le confort
  * habituel, le p95 dit ce qui arrive quand le reseau tousse.
@@ -136,20 +137,29 @@ await new Promise((resolve) => {
     if (st === "SUBSCRIBED") resolve();
   });
 });
-/** Attend que le changement provoque par `action` arrive par Realtime. */
-async function propagation(action) {
+/**
+ * Joue `action` et mesure DEUX choses distinctes :
+ *   - `action` : l'aller-retour RPC, ce que le joueur qui agit attend ;
+ *   - `propagation` : le moment ou les AUTRES ecrans l'apprennent, par
+ *     Realtime, sans rien demander au serveur.
+ *
+ * Les confondre donnerait un « buzz » artificiellement lent : l'echo
+ * Realtime arrive forcement apres la reponse a l'appel.
+ */
+async function mesurer(action) {
   let t0 = 0;
   const attendu = new Promise((resolve) => {
-    onPush = (row) => {
+    onPush = () => {
       onPush = null;
       resolve(Date.now() - t0);
     };
   });
   t0 = Date.now();
   await action();
-  const ms = await Promise.race([attendu, sleep(4000).then(() => null)]);
+  const actionMs = Date.now() - t0;
+  const propagationMs = await Promise.race([attendu, sleep(4000).then(() => null)]);
   onPush = null;
-  return ms;
+  return { actionMs, propagationMs };
 }
 
 /* ---------- Le plancher : un aller-retour vide ---------- */
@@ -186,10 +196,9 @@ while (guard++ < 600 && mes.buzz.length < ROUNDS) {
 
   if (g.phase === "BUZZING") {
     const duel = bots.find((b) => b.id === g.faceoff_r);
-    const t0 = Date.now();
-    const ms = await propagation(() => rpc(duel, "tf_buzz", { p_code: CODE }));
-    mes.buzz.push(Date.now() - t0);
-    if (ms !== null) mes.propagation.push(ms);
+    const m = await mesurer(() => rpc(duel, "tf_buzz", { p_code: CODE }));
+    mes.buzz.push(m.actionMs);
+    if (m.propagationMs !== null) mes.propagation.push(m.propagationMs);
     continue;
   }
 
@@ -200,10 +209,9 @@ while (guard++ < 600 && mes.buzz.length < ROUNDS) {
       continue;
     }
     const a = hidden(s) ?? "zzzz";
-    const t0 = Date.now();
-    const ms = await propagation(() => tryRpc(who, "tf_submit", { p_code: CODE, p_raw: a }));
-    mes.reponse.push(Date.now() - t0);
-    if (ms !== null) mes.propagation.push(ms);
+    const m = await mesurer(() => tryRpc(who, "tf_submit", { p_code: CODE, p_raw: a }));
+    mes.reponse.push(m.actionMs);
+    if (m.propagationMs !== null) mes.propagation.push(m.propagationMs);
     continue;
   }
 
@@ -224,11 +232,11 @@ console.log("");
 show("plancher reseau", stats(plancher), 150);
 show("lire l'etat (tf_state)", stats(mes.etat), 150);
 console.log("");
-show("BUZZ -> j'ai la main", stats(mes.buzz), 250);
-show("REPONSE -> verdict", stats(mes.reponse), 250);
+show("BUZZ (aller-retour)", stats(mes.buzz), 250);
+show("REPONSE (aller-retour)", stats(mes.reponse), 250);
 show("avancer une phase", stats(mes.tick), 250);
 console.log("");
-show("propagation aux AUTRES", stats(mes.propagation), 400);
+show("echo aux AUTRES ecrans", stats(mes.propagation), 400);
 
 const p = stats(mes.propagation);
 const b = stats(mes.buzz);
