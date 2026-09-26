@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AnswerForm from "@/components/phone/AnswerForm";
 import Buzzer from "@/components/phone/Buzzer";
@@ -165,7 +166,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
         )}
 
         {/* ---------- Le corps ---------- */}
-        <div className="flex flex-1 flex-col justify-center py-5">
+        <div className="remote-body py-5">
           {/* --- LOBBY --- */}
           {phase === "LOBBY" && (
             <Lobby
@@ -520,6 +521,13 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
           >
             ❓ Règles
           </button>
+          <Link
+            href={`/g/${code}/tv`}
+            className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/30 transition hover:text-gold"
+            title="Le plateau, a mettre sur la television"
+          >
+            📺 Plateau
+          </Link>
           <button
             type="button"
             onClick={async () => {

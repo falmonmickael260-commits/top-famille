@@ -18,7 +18,8 @@
     "push:schema": "node scripts/push-schema.mjs",
     "stage": "node scripts/stage-game.mjs",
     "bot": "node scripts/bot.mjs",
-    "demo": "node scripts/demo.mjs"
+    "demo": "node scripts/demo.mjs",
+    "latency": "node scripts/latency.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

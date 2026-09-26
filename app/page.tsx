@@ -96,8 +96,19 @@ export default function HomePage() {
       remember(pseudo);
       const state = await createGame(pseudo, team);
       play("ui");
-      // L'hote atterrit sur le plateau : c'est l'ecran qu'on met sur la TV.
-      router.push(`/g/${state.game.code}/tv`);
+      /*
+       * Ou envoyer l'hote ?
+       *
+       * Sur un grand ecran, sur le plateau : c'est celui qu'on met sur la
+       * television. Mais sur un telephone, le plateau n'a ni buzzer ni champ
+       * de reponse — l'hote se retrouvait sur un ecran de television, sans
+       * aucun moyen de jouer et sans lien vers sa telecommande. On l'envoie
+       * donc sur la telecommande, d'ou il peut ouvrir le plateau.
+       */
+      const petitEcran =
+        window.matchMedia("(max-width: 900px)").matches ||
+        window.matchMedia("(pointer: coarse)").matches;
+      router.push(petitEcran ? `/g/${state.game.code}` : `/g/${state.game.code}/tv`);
     } catch (err) {
       setError(cleanError(err));
       setBusy(false);

@@ -890,6 +890,23 @@ body {
 }
 .remote[data-mode="wait"] { background: var(--stage-950); }
 
+/* Le corps de la telecommande.
+
+   `justify-content: safe center` au lieu de `center` : sur un ecran tres
+   court, un contenu centre plus haut que la fenetre deborde des DEUX cotes,
+   et la partie du haut devient inatteignable — on ne peut pas remonter
+   au-dessus du conteneur. Le mot-cle `safe` bascule en alignement au debut
+   des que ca ne rentre plus, et le defilement rattrape le reste. C'est
+   exactement le cas ou le buzzer disparaissait sur un petit Android. */
+.remote-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ---------------------------------------------------------------------
    12. ACCESSIBILITE
    --------------------------------------------------------------------- */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Announcer from "@/components/Announcer";
 import Confetti from "@/components/fx/Confetti";
@@ -120,6 +121,19 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
 
   const activeName = playerName(players, game.active_player_id ?? game.buzz_winner);
 
+  /* Le plateau se regarde ; on n'y joue pas. Mais l'hote le garde souvent
+     ouvert devant lui : s'il rate son propre tour parce que son buzzer est
+     sur un autre onglet, c'est raté pour tout le monde. */
+  const me = players.find((p) => p.id === myId) ?? null;
+  const monTour =
+    !!me &&
+    ((phase === "BUZZING" && (game.faceoff_r === myId || game.faceoff_b === myId)) ||
+      (phase === "ANSWERING" && game.buzz_winner === myId) ||
+      (phase === "TEAM_TURN" && game.active_player_id === myId) ||
+      (phase === "STEAL" && game.steal_team === me.team && !game.steal_by) ||
+      ((phase === "FINALE_PLAYER_ONE" || phase === "FINALE_PLAYER_TWO") &&
+        (game.finale_slot === 1 ? game.finale_p1 : game.finale_p2) === myId));
+
   /* Le lobby (podiums d'arrivee) et la victoire (palmares) affichent deja les
      deux equipes : les colonnes laterales du plateau feraient doublon. */
   const showRosters = phase !== "LOBBY" && phase !== "VICTORY";
@@ -129,6 +143,16 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
       <Studio accent={accent} />
       <Particles count={44} />
       <Slam text={sc.slam} keyId={game.phase_seq} tone={sc.tone === "neutral" ? "drama" : sc.tone} />
+
+      {monTour && (
+        <Link
+          href={`/g/${code}`}
+          className="btn btn-gold pop fixed inset-x-3 bottom-3 z-[65] py-4 text-base sm:inset-x-auto sm:left-1/2 sm:w-[22rem] sm:-translate-x-1/2"
+        >
+          <span aria-hidden>🔥</span>
+          <span>C&apos;est à toi — ouvrir ta télécommande</span>
+        </Link>
+      )}
 
       <div
         key={shake}
@@ -144,6 +168,16 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
           </h1>
           <span className="byline text-[8px] sm:text-[9px]">by Lewishalmito</span>
           <span className="flex-1" />
+          {/* Sans ce lien, un hote arrive sur le plateau depuis son telephone
+              se retrouvait sans buzzer et sans aucun moyen d'en sortir. */}
+          <Link
+            href={`/g/${code}`}
+            className="btn btn-ghost px-3 py-2 text-[10px]"
+            title="Ouvrir ta telecommande"
+          >
+            <span aria-hidden>📱</span>
+            <span>Télécommande</span>
+          </Link>
           {!g.live && (
             <span className="rounded-lg bg-gold/12 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.18em] text-gold pulse-soft">
               Reconnexion…

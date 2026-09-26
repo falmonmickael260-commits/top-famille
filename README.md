@@ -374,6 +374,7 @@ consommation, voiture, travail, école, fêtes, sorties, voyages, habitudes.
 | `npm run demo` | une partie de démonstration jouée toute seule, à regarder |
 | `npm run bot` | un joueur robot, pour compléter les équipes |
 | `npm run stage` | met une partie dans un état donné, pour travailler le plateau |
+| `npm run latency` | **chronomètre toutes les latences du jeu** |
 
 ### `npm run simulate`
 
@@ -463,6 +464,31 @@ posée, trois réponses ouvertes, une faute au compteur) :
 ```bash
 npm run stage
 ```
+
+### Mesurer les latences
+
+```bash
+npm run latency
+```
+
+Chronomètre ce que le joueur ressent, geste par geste : le plancher réseau, le
+buzz jusqu'à « c'est toi qui réponds », la réponse jusqu'au verdict, et
+surtout la **propagation** — le délai entre le geste d'un joueur et le moment
+où les autres téléphones l'apprennent, par Realtime.
+
+Relevé sur le projet actuel (`eu-west-1`) :
+
+| | médiane | p95 |
+|---|---|---|
+| plancher réseau | 113 ms | 227 ms |
+| lire l'état | 116 ms | 160 ms |
+| buzz → j'ai la main | 167 ms | 527 ms |
+| réponse → verdict | 238 ms | 574 ms |
+| **propagation aux autres** | **236 ms** | 574 ms |
+
+La lecture d'état coûte autant qu'un `select` trivial : le SQL est gratuit,
+tout est du temps réseau. C'est pour ça que le travail d'optimisation a porté
+sur le **nombre** d'allers-retours, pas sur leur contenu.
 
 ## Tester le multijoueur à la main
 
