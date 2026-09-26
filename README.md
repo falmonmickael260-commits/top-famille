@@ -166,14 +166,20 @@ FIN DE LA MANCHE
 **Face-à-face.** Un joueur de chaque équipe, jamais les deux mêmes : le serveur
 choisit celui qui en a fait le moins, donc tout le monde y passe. La question
 s'affiche, les deux peuvent buzzer, **le serveur départage**. Le premier a
-**10 secondes** pour écrire.
+**15 secondes** pour écrire.
+
+> Seuls ces **deux joueurs** voient le buzzer. Les autres lisent, sur leur
+> téléphone, qui buzze pour leur équipe et pourquoi ce n'est pas leur tour —
+> c'est la mécanique, pas une panne.
 
 **Prendre le contrôle.** Bonne réponse : **toute son équipe** prend la manche —
 ce n'est pas le joueur qui joue seul. Mauvaise réponse : la main passe à
 l'adversaire du duel, 10 secondes pour lui. Si personne ne trouve,
 **la manche ne va à personne**.
 
-**Tour de l'équipe.** 25 secondes de chrono commun. Les joueurs répondent
+**Tour de l'équipe.** 35 secondes de chrono **commun à toute l'équipe** — il
+ne repart pas à zéro à chaque joueur, et le téléphone le dit explicitement.
+Les joueurs répondent
 **chacun leur tour**, dans un ordre fixe qui démarre au gagnant du face-à-face.
 Après **chaque** réponse — bonne ou mauvaise — la main passe au suivant : celui
 qui s'est trompé **ne rejoue pas immédiatement**.
@@ -562,6 +568,23 @@ et c'est là qu'ont été trouvés les bugs les plus graves :
   du double-tap.
 - **La barre d'accueil de l'iPhone** recouvrait « Quitter » et « Règles » :
   `env(safe-area-inset-*)` sur la télécommande et sur le plateau.
+- **Le champ de réponse passait derrière le clavier.** Sans
+  `interactive-widget=resizes-content`, l'ouverture du clavier ne
+  redimensionne pas la zone de mise en page : elle la recouvre. Les hauteurs
+  en `dvh` restaient celles de l'écran entier et le champ finissait hors
+  d'atteinte, au moment précis où il faut écrire. Le champ se recentre en plus
+  tout seul à l'ouverture du clavier et à chaque changement de zone visible.
+- **La télécommande faisait défiler tout le document.** `.remote-body` est un
+  enfant flex : sans `min-height: 0`, il refuse de descendre sous la taille de
+  son contenu, déborde du cadre et entraîne la page entière. L'en-tête partait
+  vers le haut, le pied de page flottait, et les positions devenaient
+  imprévisibles dès que le clavier s'ouvrait. C'est maintenant un cadre de
+  hauteur fixe dont **seul le centre défile**.
+- **Le buzzer restait mort sur certains iPhone.** Un seul gestionnaire ne
+  suffit pas : selon l'appareil et la version, c'est `touchstart`,
+  `pointerdown` ou `click` qui arrive — parfois un seul des trois. Les trois
+  sont désormais écoutés, avec un verrou pour qu'un appui ne parte qu'une fois,
+  et sans `preventDefault()` qui supprimerait le retour tactile d'iOS.
 - **Le formulaire verrouillé en finale.** La phase ne change pas entre les
   cinq questions, donc React réutilisait la même instance du formulaire et
   son état « envoyé » restait vrai : **le finaliste ne pouvait répondre qu'à

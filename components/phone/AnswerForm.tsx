@@ -67,6 +67,45 @@ export default function AnswerForm({
     if (autoFocus) ref.current?.focus();
   }, [autoFocus]);
 
+  /*
+   * GARDER LE CHAMP SOUS LES YEUX QUAND LE CLAVIER S'OUVRE.
+   *
+   * Le viewport est en `interactive-widget: resizes-content`, donc la page
+   * retrecit — mais le navigateur ne fait pas toujours defiler jusqu'au champ
+   * focalise, et sur iOS la zone visible bouge encore apres l'ouverture du
+   * clavier. Sans ca, le joueur voit le clavier surgir et son champ
+   * disparaitre : il tape a l'aveugle, ou croit que l'ecran a bugue.
+   *
+   * On le ramene donc au centre a l'ouverture, puis a chaque changement de
+   * la zone visible.
+   */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const ramener = () => {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    };
+
+    const onFocus = () => {
+      // Deux passes : le clavier met un instant a s'installer.
+      window.setTimeout(ramener, 120);
+      window.setTimeout(ramener, 420);
+    };
+    el.addEventListener("focus", onFocus);
+
+    const vv = window.visualViewport;
+    const onViewport = () => {
+      if (document.activeElement === el) ramener();
+    };
+    vv?.addEventListener("resize", onViewport);
+
+    return () => {
+      el.removeEventListener("focus", onFocus);
+      vv?.removeEventListener("resize", onViewport);
+    };
+  }, [resetKey]);
+
   const send = () => {
     const v = (ref.current?.value ?? "").trim();
     if (!v || sent || busy) return;

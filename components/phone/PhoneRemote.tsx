@@ -132,7 +132,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
     <div className="remote relative" data-mode={mode} onPointerDown={() => initAudio()}>
       <Studio accent={mode === "buzz" ? "R" : mode === "turn" ? "GOLD" : (game.control_team ?? null)} />
 
-      <div className="relative z-10 flex min-h-dvh flex-col px-4 py-4">
+      <div className="relative z-10 flex h-full min-h-0 flex-col px-4 py-4">
         {/* ---------- Bandeau : qui je suis ---------- */}
         <header className="flex items-center gap-2">
           <span
@@ -200,8 +200,8 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
               />
             ) : (
               <Big
-                title="Face-à-face"
-                sub={`${TEAM_DOT.R} ${playerName(players, game.faceoff_r)} contre ${TEAM_DOT.B} ${playerName(players, game.faceoff_b)}`}
+                title="Tu ne buzzes pas cette manche"
+                sub={`${TEAM_DOT.R} ${playerName(players, game.faceoff_r)} contre ${TEAM_DOT.B} ${playerName(players, game.faceoff_b)} — les duellistes changent à chaque manche, ton tour viendra. Si ton équipe gagne le face-à-face, tu joueras juste après.`}
                 tone="wait"
               />
             ))}
@@ -220,9 +220,10 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
               <>
                 <Question text={state.board?.prompt} />
                 <Big
-                  title="Ils buzzent"
-                  sub={`${playerName(players, game.faceoff_r)} contre ${playerName(players, game.faceoff_b)}`}
+                  title="Pas de buzzer pour toi"
+                  sub={`C'est ${playerName(players, myTeam === "R" ? game.faceoff_r : game.faceoff_b)} qui buzze pour ton équipe cette manche. Deux joueurs seulement s'affrontent au face-à-face, et ce ne sont jamais les mêmes.`}
                   tone="wait"
+                  clock={clock}
                 />
               </>
             ))}
@@ -300,7 +301,8 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                   <Strikes count={game.strikes} size="sm" />
                 </div>
                 <AnswerForm
-                  title="Réponds !"
+                  title="Temps de l'équipe"
+                  hint="Ce chrono est commun à toute l'équipe : il ne repart pas à zéro à chaque joueur."
                   clock={clock}
                   busy={busy}
                   resetKey={game.phase_seq}
@@ -313,9 +315,9 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 <Question text={state.board?.prompt} />
                 <Big
                   title="⏳ Attends ton tour"
-                  sub={`Joueur actif : ${playerName(players, game.active_player_id)}${
-                    nextPlayer ? ` · puis ${nextPlayer.name}` : ""
-                  }`}
+                  sub={`${playerName(players, game.active_player_id)} répond${
+                    nextPlayer ? `, puis ${nextPlayer.name}` : ""
+                  }. Le chrono affiché est celui de toute l'équipe.`}
                   tone="wait"
                   clock={clock}
                   strikes={game.strikes}

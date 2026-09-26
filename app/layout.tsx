@@ -18,6 +18,18 @@ export const viewport: Viewport = {
   // pendant qu'on cherche le buzzer.
   maximumScale: 1,
   userScalable: false,
+  /*
+   * LE REGLAGE QUI RENDAIT LE CHAMP DE REPONSE INVISIBLE.
+   *
+   * Par defaut, l'ouverture du clavier ne redimensionne PAS la zone de mise
+   * en page : elle se contente de la recouvrir. Les hauteurs en `dvh` restent
+   * donc celles de l'ecran entier, et le champ de saisie se retrouve derriere
+   * le clavier, hors d'atteinte — au moment precis ou le joueur doit ecrire.
+   *
+   * `resizes-content` fait retrecir la page quand le clavier s'ouvre : tout
+   * ce qui est a l'ecran le reste.
+   */
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

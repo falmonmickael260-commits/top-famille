@@ -579,6 +579,21 @@ body {
   box-shadow: inset 0 -10px 24px rgba(0, 0, 0, 0.5), 0 0 0 6px rgba(255, 255, 255, 0.04);
 }
 
+/* Appui envoye : on le montre franchement, sans dependre de :active — sur
+   telephone, le doigt quitte le bouton avant qu'on ait vu quoi que ce soit. */
+.buzzer[data-sent="true"] {
+  animation: none;
+  filter: none;
+  transform: scale(0.94);
+  background: radial-gradient(circle at 50% 32%, #ffd9a0 0%, #f5c344 45%, #8a6207 100%);
+  color: #1b1200;
+  box-shadow:
+    inset 0 -10px 26px rgba(0, 0, 0, 0.35),
+    0 0 0 10px rgba(245, 195, 68, 0.18),
+    0 0 90px -10px rgba(245, 195, 68, 0.9);
+  opacity: 1;
+}
+
 @keyframes buzz-breathe {
   0%, 100% {
     transform: scale(1);
@@ -867,7 +882,19 @@ body {
 /* Sur un telephone, l'etat "c'est ton tour" doit se voir de loin, posé
    sur la table, en un dixieme de seconde. */
 .remote {
-  min-height: 100dvh;
+  /*
+   * HAUTEUR FIXE, pas `min-height`.
+   *
+   * Avec `min-height`, un contenu plus haut que l'ecran faisait defiler le
+   * DOCUMENT entier : l'en-tete (nom, code de partie) disparaissait vers le
+   * haut, le pied de page flottait n'importe ou, et les positions devenaient
+   * imprevisibles des que le clavier s'ouvrait. La telecommande est une
+   * application, pas une page : un cadre fixe, et seul le centre defile.
+   */
+  height: 100vh; /* repli pour les navigateurs sans dvh */
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   transition: background 500ms ease;
@@ -900,10 +927,20 @@ body {
    exactement le cas ou le buzzer disparaissait sur un petit Android. */
 .remote-body {
   flex: 1 1 auto;
+  /*
+   * `min-height: 0` est LA ligne qui manquait.
+   *
+   * Par defaut un enfant flex refuse de descendre sous la taille de son
+   * contenu : la zone centrale debordait donc du cadre au lieu de defiler,
+   * et entrainait tout le document avec elle. Sans cette ligne, l'overflow
+   * ci-dessous ne sert a rien.
+   */
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: safe center;
   overflow-y: auto;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 

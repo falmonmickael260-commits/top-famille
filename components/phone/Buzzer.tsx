@@ -1,20 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { play } from "@/lib/audio";
+import { play, unlockAudio } from "@/lib/audio";
 
 /**
  * LE BUZZER. Gros, rond, au milieu du pouce, et il respire tant qu'il est
  * arme : on doit pouvoir taper dessus sans regarder l'ecran.
  *
- * Deux protections cote client, en plus du verrou serveur :
- *   - `sent` : on ne peut pas l'envoyer deux fois ;
- *   - un seul appel par appui, meme si le navigateur double l'evenement
- *     (pointerdown + click sur certains telephones).
+ * TROIS chemins d'entree, et c'est voulu.
+ *
+ * Un seul gestionnaire ne suffit pas sur telephone : selon l'appareil, la
+ * version du navigateur et le mode d'accessibilite, c'est `touchstart`,
+ * `pointerdown` ou `click` qui arrive — parfois un seul des trois. En ne
+ * traitant que `pointerdown`, le buzzer restait mort sur certains iPhone.
+ * On ecoute donc les trois, et un verrou (`fired`) garantit qu'un seul appui
+ * ne part qu'une fois.
+ *
+ * On n'appelle jamais preventDefault() : sur iOS, couper l'evenement par
+ * defaut supprime aussi le retour tactile du systeme et, dans certains cas,
+ * le `click` qui suit. Le zoom au double-tap est deja neutralise par
+ * `touch-action: manipulation` et le viewport.
  *
  * Qui a buzze en premier reste decide par Supabase : le premier UPDATE qui
- * trouve `buzz_winner is null` gagne, les autres sont refuses. Deux appuis a
- * la milliseconde ne peuvent pas passer tous les deux.
+ * trouve `buzz_winner is null` gagne. Deux appuis a la milliseconde ne
+ * peuvent pas passer tous les deux.
  */
 export default function Buzzer({
   armed,
@@ -29,8 +38,6 @@ export default function Buzzer({
   const [sent, setSent] = useState(false);
   const fired = useRef(false);
 
-  // Meme precaution que dans AnswerForm : si le composant n'est pas
-  // demonte entre deux fenetres de buzz, il resterait verrouille.
   useEffect(() => {
     setSent(false);
     fired.current = false;
@@ -40,13 +47,19 @@ export default function Buzzer({
     if (!armed || fired.current) return;
     fired.current = true;
     setSent(true);
+
+    // Le premier appui du joueur est aussi ce qui autorise le son sur iOS.
+    unlockAudio();
     play("buzz");
-    // Retour haptique : sur un telephone, c'est ce qui rend le buzz satisfaisant.
+
+    // Retour haptique : sur un telephone, c'est ce qui rend le buzz
+    // satisfaisant. Absent sur iPhone, sans consequence.
     try {
       navigator.vibrate?.(90);
     } catch {
       /* pas de vibreur : tant pis */
     }
+
     onBuzz();
   };
 
@@ -56,14 +69,10 @@ export default function Buzzer({
         type="button"
         className="buzzer"
         disabled={!armed || sent}
-        onPointerDown={(e) => {
-          e.preventDefault();
-          fire();
-        }}
-        onClick={(e) => {
-          e.preventDefault();
-          fire();
-        }}
+        data-sent={sent ? "true" : "false"}
+        onTouchStart={fire}
+        onPointerDown={fire}
+        onClick={fire}
         aria-label="Buzzer"
       >
         {sent ? "ENVOYÉ" : "BUZZ !"}
