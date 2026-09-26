@@ -9,7 +9,7 @@ import SoundToggles from "@/components/fx/SoundToggles";
 import Studio from "@/components/fx/Studio";
 import Lobby from "@/components/stage/Lobby";
 import Strikes from "@/components/stage/Strikes";
-import Timer from "@/components/stage/Timer";
+import Timer, { SecondsLeft } from "@/components/stage/Timer";
 import {
   buzz,
   leaveGame,
@@ -22,6 +22,7 @@ import {
 } from "@/lib/api";
 import { initAudio, installAudioUnlock, play, setMood } from "@/lib/audio";
 import { TEAM_DOT, TEAM_NAME, type Team } from "@/lib/types";
+import { useCountdown, type Clock } from "@/lib/useCountdown";
 import { useWakeLock } from "@/lib/useWakeLock";
 import type { UseGame } from "@/lib/useGame";
 
@@ -36,7 +37,7 @@ import type { UseGame } from "@/lib/useGame";
  */
 export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
   const router = useRouter();
-  const { game, players, state, myId, me, isHost, busy, error, remainingMs, phaseTotalMs } = g;
+  const { game, players, state, myId, me, isHost, busy, error, clock } = g;
 
   const [rules, setRules] = useState(false);
   const lastBeat = useRef(-1);
@@ -194,7 +195,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                   game.faceoff_r === myId ? game.faceoff_b : game.faceoff_r
                 )} — le doigt sur le buzzer`}
                 tone="r"
-                count={Math.ceil(remainingMs / 1000)}
+                countClock={clock}
               />
             ) : (
               <Big
@@ -211,7 +212,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 <Question text={state.board?.prompt} />
                 <Buzzer armed resetKey={game.phase_seq} onBuzz={() => g.run(() => buzz(code))} />
                 <div className="w-full max-w-xs">
-                  <Timer remainingMs={remainingMs} totalMs={phaseTotalMs} label="Fenêtre de buzz" />
+                  <Timer clock={clock} label="Fenêtre de buzz" />
                 </div>
               </div>
             ) : (
@@ -232,8 +233,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 <Question text={state.board?.prompt} />
                 <AnswerForm
                   title="Écris ta réponse"
-                  remainingMs={remainingMs}
-                  totalMs={phaseTotalMs}
+                  clock={clock}
                   busy={busy}
                   resetKey={game.phase_seq}
                   tone={myTeam === "B" ? "b" : "r"}
@@ -245,7 +245,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 title={`${playerName(players, game.buzz_winner)} répond`}
                 sub="Silence sur le plateau"
                 tone="wait"
-                seconds={remainingMs}
+                clock={clock}
               />
             ))}
 
@@ -300,8 +300,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 </div>
                 <AnswerForm
                   title="Réponds !"
-                  remainingMs={remainingMs}
-                  totalMs={phaseTotalMs}
+                  clock={clock}
                   busy={busy}
                   resetKey={game.phase_seq}
                   tone="gold"
@@ -317,7 +316,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                     nextPlayer ? ` · puis ${nextPlayer.name}` : ""
                   }`}
                   tone="wait"
-                  seconds={remainingMs}
+                  clock={clock}
                   strikes={game.strikes}
                 />
               </>
@@ -326,7 +325,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 title="L’autre équipe joue"
                 sub={`${playerName(players, game.active_player_id)} répond · concertez-vous pour le vol`}
                 tone="wait"
-                seconds={remainingMs}
+                clock={clock}
                 strikes={game.strikes}
               />
             ))}
@@ -354,8 +353,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 </div>
                 <AnswerForm
                   title="La réponse de l’équipe"
-                  remainingMs={remainingMs}
-                  totalMs={phaseTotalMs}
+                  clock={clock}
                   busy={busy}
                   resetKey={game.phase_seq}
                   tone={myTeam === "R" ? "r" : "b"}
@@ -367,7 +365,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 title="Vol de manche"
                 sub={`L’équipe ${TEAM_NAME[(game.steal_team ?? "R") as Team].toLowerCase()} peut vous prendre ${game.round_points} points`}
                 tone="bad"
-                seconds={remainingMs}
+                clock={clock}
               />
             ))}
 
@@ -425,8 +423,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                 </p>
                 <AnswerForm
                   title="Ta réponse"
-                  remainingMs={remainingMs}
-                  totalMs={phaseTotalMs}
+                  clock={clock}
                   busy={busy}
                   resetKey={game.phase_seq}
                   tone="gold"
@@ -446,7 +443,7 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
                     : `Question ${game.finale_q_index + 1} sur 5`
                 }
                 tone={iAmFinalist ? "bad" : "wait"}
-                seconds={remainingMs}
+                clock={clock}
               />
             ))}
 
@@ -570,17 +567,17 @@ function Big({
   title,
   sub,
   tone,
-  seconds,
-  count,
+  clock,
+  countClock,
   strikes,
 }: {
   title: string;
   sub?: string;
   tone: "gold" | "good" | "bad" | "wait" | "r";
   /** Chrono discret, quand le joueur n'agit pas mais doit suivre. */
-  seconds?: number;
+  clock?: Clock;
   /** Gros compte a rebours (face-a-face). */
-  count?: number;
+  countClock?: Clock;
   strikes?: number;
 }) {
   const color =
@@ -596,11 +593,7 @@ function Big({
 
   return (
     <div className="pop text-center">
-      {count !== undefined && count >= 1 && count <= 3 && (
-        <p key={count} className="display drop-in text-gold neon-gold text-[5rem] leading-none">
-          {count}
-        </p>
-      )}
+      {countClock && <BigCount clock={countClock} />}
       <p className={`display mt-3 text-balance text-[clamp(1.5rem,8vw,2.6rem)] ${color}`}>
         {title}
       </p>
@@ -614,12 +607,24 @@ function Big({
           <Strikes count={strikes} size="sm" />
         </div>
       )}
-      {seconds !== undefined && seconds > 0 && (
-        <p className="display mt-5 tabular-nums text-white/35 text-[1.6rem]">
-          {Math.ceil(seconds / 1000)}
-          <span className="text-[0.5em]">s</span>
-        </p>
+      {clock && (
+        <SecondsLeft clock={clock} className="mt-5 text-white/35 text-[1.6rem]" />
       )}
     </div>
+  );
+}
+
+/**
+ * Le 3 - 2 - 1 du face-a-face. Isole dans son propre composant pour que le
+ * decompte ne fasse pas re-rendre tout l'ecran du telephone.
+ */
+function BigCount({ clock }: { clock: Clock }) {
+  const ms = useCountdown(clock, 10);
+  const n = Math.ceil(ms / 1000);
+  if (n < 1 || n > 3) return null;
+  return (
+    <p key={n} className="display drop-in text-gold neon-gold text-[5rem] leading-none">
+      {n}
+    </p>
   );
 }

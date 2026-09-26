@@ -4,6 +4,7 @@ import { playerName } from "@/lib/api";
 import Timer from "@/components/stage/Timer";
 import { TEAM_DOT, TEAM_NAME } from "@/lib/types";
 import type { Finale, Game, Player } from "@/lib/types";
+import type { Clock } from "@/lib/useCountdown";
 
 /**
  * LA GRANDE FINALE.
@@ -17,15 +18,13 @@ export default function FinaleScene({
   game,
   finale,
   players,
-  remainingMs,
-  phaseTotalMs,
+  clock,
   compact = false,
 }: {
   game: Game;
   finale: Finale | null;
   players: Player[];
-  remainingMs: number;
-  phaseTotalMs: number;
+  clock: Clock;
   compact?: boolean;
 }) {
   if (!finale) return null;
@@ -68,7 +67,7 @@ export default function FinaleScene({
             </p>
           </div>
           <div className="min-w-[10rem]">
-            <Timer remainingMs={remainingMs} totalMs={phaseTotalMs} label="Réponse" />
+            <Timer clock={clock} label="Réponse" />
           </div>
         </div>
       )}

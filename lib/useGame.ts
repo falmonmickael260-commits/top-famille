@@ -5,11 +5,13 @@ import { supabase } from "@/lib/supabase";
 import {
   cleanError,
   ensureAuth,
+  fetchPlayers,
   fetchState,
   gameExists,
   tick as tickRpc,
 } from "@/lib/api";
 import type { Game, GameEventPayload, GameState, Player } from "@/lib/types";
+import type { Clock } from "@/lib/useCountdown";
 
 /**
  * L'unique source d'etat du jeu cote client.
@@ -45,15 +47,15 @@ export interface UseGame {
   error: string | null;
   live: boolean;
   reconnected: boolean;
-  /** Temps restant sur la phase en cours, en ms (0 si pas de chrono). */
-  remainingMs: number;
+  /** Bornes de l'horloge serveur. Le decompte se fait via useCountdown(). */
+  clock: Clock;
   /** Duree totale de la phase en cours, en ms (pour dessiner une jauge). */
   phaseTotalMs: number;
   /** Le beat a animer. Change a chaque phase_seq : jamais rate. */
   beat: { seq: number; event: GameEventPayload | null };
   clearError: () => void;
   run: (fn: () => Promise<GameState>) => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { force?: boolean }) => Promise<void>;
 }
 
 export function useGame(code: string): UseGame {
@@ -65,11 +67,15 @@ export function useGame(code: string): UseGame {
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(true);
   const [reconnected, setReconnected] = useState(false);
-  const [now, setNow] = useState(() => Date.now());
   const [offsetMs, setOffsetMs] = useState(0);
 
   const wasDown = useRef(false);
   const tickGuard = useRef(-1);
+  /** Derniere phase pour laquelle on possede deja le tableau complet. */
+  const loadedSeq = useRef(-1);
+  /** Resynchro en cours, pour ne pas en lancer dix en parallele. */
+  const inFlight = useRef<Promise<void> | null>(null);
+  const gameIdRef = useRef<string | null>(null);
   const seqRef = useRef(-1);
 
   const game = state?.game ?? null;
@@ -87,6 +93,8 @@ export function useGame(code: string): UseGame {
   /** Applique une reponse RPC et recale l'horloge sur celle du serveur. */
   const apply = useCallback((next: GameState) => {
     setState(next);
+    loadedSeq.current = next.game.phase_seq;
+    gameIdRef.current = next.game.id;
     if (next.serverNow) {
       const server = new Date(next.serverNow).getTime();
       if (Number.isFinite(server)) {
@@ -128,14 +136,42 @@ export function useGame(code: string): UseGame {
     };
   }, [code, apply]);
 
-  /** Re-demande l'etat complet au serveur. Sert de filet partout. */
-  const refresh = useCallback(async () => {
+  /**
+   * Re-demande l'etat complet au serveur. Sert de filet partout.
+   *
+   * Deux garde-fous, parce que chaque appel coute un aller-retour d'environ
+   * 100 ms et qu'ils se declenchaient en rafale :
+   *   - une seule resynchro a la fois (les suivantes attendent la meme) ;
+   *   - on ne redemande rien si on a deja le tableau de cette phase.
+   */
+  const refresh = useCallback(
+    async (opts?: { force?: boolean }) => {
+      if (!opts?.force && inFlight.current) return inFlight.current;
+      const p = (async () => {
+        try {
+          apply(await fetchState(code));
+        } catch {
+          /* silencieux : une resynchro ratee sera retentee au battement suivant */
+        } finally {
+          inFlight.current = null;
+        }
+      })();
+      inFlight.current = p;
+      return p;
+    },
+    [code, apply]
+  );
+
+  /** Les joueurs seuls : bien plus leger que l'etat complet. */
+  const refreshPlayers = useCallback(async () => {
+    if (!gameIdRef.current) return;
     try {
-      apply(await fetchState(code));
+      const rows = await fetchPlayers(gameIdRef.current);
+      setState((prev) => (prev ? { ...prev, players: rows } : prev));
     } catch {
-      /* silencieux : une resynchro ratee sera retentee au battement suivant */
+      /* le battement de coeur rattrapera */
     }
-  }, [code, apply]);
+  }, []);
 
   /* ---------------------------------------------------------------- */
   /*  2. Realtime : tf_games + tf_players + tf_events + presence      */
@@ -149,9 +185,16 @@ export function useGame(code: string): UseGame {
       config: { presence: { key: myId } },
     });
 
-    // La ligne complete arrive (replica identity full) : on s'en sert tout de
-    // suite pour que le chrono ne clignote pas, puis on redemande l'etat
-    // complet (le tableau, lui, n'est pas dans la ligne).
+    /*
+     * La ligne complete arrive (replica identity full) : on l'applique tout de
+     * suite, ce qui ne coute rien et fait repartir le chrono sans attendre.
+     *
+     * On ne redemande l'etat complet QUE si la phase a change et qu'on n'a pas
+     * deja le tableau correspondant. Avant, chaque evenement declenchait une
+     * resynchro — y compris juste apres une action qui venait de renvoyer
+     * l'etat frais. Avec six telephones, un simple buzz provoquait sept
+     * allers-retours inutiles, et tout le monde attendait.
+     */
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: "tf_games", filter: `id=eq.${gameId}` },
@@ -159,19 +202,20 @@ export function useGame(code: string): UseGame {
         const next = payload.new as Game | undefined;
         if (!next?.id) return;
         setState((prev) => (prev ? { ...prev, game: next } : prev));
-        void refresh();
+        if (next.phase_seq !== loadedSeq.current) void refresh();
       }
     );
 
     // Pas de filtre : quand un joueur quitte, game_id passe a null et un
-    // filtre "game_id=eq.X" ne verrait jamais l'evenement.
+    // filtre "game_id=eq.X" ne verrait jamais l'evenement. On ne recharge que
+    // la liste des joueurs : reconstruire tout le tableau serait du gachis.
     channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: "tf_players" },
       (payload) => {
         const next = payload.new as Partial<Player> | undefined;
         const prev = payload.old as Partial<Player> | undefined;
-        if (next?.game_id === gameId || prev?.game_id === gameId) void refresh();
+        if (next?.game_id === gameId || prev?.game_id === gameId) void refreshPlayers();
       }
     );
 
@@ -179,7 +223,7 @@ export function useGame(code: string): UseGame {
       if (status === "SUBSCRIBED") {
         setLive(true);
         void channel.track({ user_id: myId });
-        void refresh();
+        void refresh({ force: true });
         if (wasDown.current) {
           wasDown.current = false;
           setReconnected(true);
@@ -206,11 +250,11 @@ export function useGame(code: string): UseGame {
   useEffect(() => {
     if (!gameId) return;
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") void refresh({ force: true });
     };
     window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
-    const iv = window.setInterval(() => void refresh(), RESYNC_MS);
+    const iv = window.setInterval(() => void refresh({ force: true }), RESYNC_MS);
     return () => {
       window.removeEventListener("focus", onVisible);
       document.removeEventListener("visibilitychange", onVisible);
@@ -219,29 +263,25 @@ export function useGame(code: string): UseGame {
   }, [gameId, refresh]);
 
   /* ---------------------------------------------------------------- */
-  /*  4. Chronometre                                                  */
+  /*  4. L'horloge                                                     */
+  /*                                                                   */
+  /*  On ne garde ici QUE les bornes fixees par le serveur. Le decompte */
+  /*  lui-meme est ticke par useCountdown(), dans le composant qui      */
+  /*  l'affiche : sinon un setInterval a 100 ms ferait re-rendre tout   */
+  /*  l'arbre dix fois par seconde — y compris le champ de saisie, ce   */
+  /*  qui rendait la frappe poussive sur telephone.                     */
   /* ---------------------------------------------------------------- */
-  const hasClock = !!game?.phase_ends_at;
-
-  useEffect(() => {
-    if (!hasClock) return;
-    // 100 ms : assez fin pour un chrono de plateau au dixieme, assez large
-    // pour ne pas peser sur les animations.
-    const iv = window.setInterval(() => setNow(Date.now()), 100);
-    return () => window.clearInterval(iv);
-  }, [hasClock, game?.phase_seq]);
-
-  const remainingMs = useMemo(() => {
-    if (!game?.phase_ends_at) return 0;
-    return Math.max(0, new Date(game.phase_ends_at).getTime() - (now - offsetMs));
-  }, [game?.phase_ends_at, now, offsetMs]);
-
   const phaseTotalMs = useMemo(() => {
     if (!game?.phase_ends_at) return 0;
     const start = new Date(game.phase_started_at).getTime();
     const end = new Date(game.phase_ends_at).getTime();
     return Math.max(1, end - start);
   }, [game?.phase_started_at, game?.phase_ends_at]);
+
+  const clock: Clock = useMemo(
+    () => ({ endsAt: game?.phase_ends_at ?? null, offsetMs, totalMs: phaseTotalMs }),
+    [game?.phase_ends_at, offsetMs, phaseTotalMs]
+  );
 
   /* ---------------------------------------------------------------- */
   /*  5. Le tick : personne ne doit pouvoir figer le show             */
@@ -341,7 +381,7 @@ export function useGame(code: string): UseGame {
     error,
     live,
     reconnected,
-    remainingMs,
+    clock,
     phaseTotalMs,
     beat,
     clearError: useCallback(() => setError(null), []),

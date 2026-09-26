@@ -23,6 +23,7 @@ import { hostSkip, playerName, restartShow, startShow, teamOf } from "@/lib/api"
 import { initAudio, installAudioUnlock, play, setMood } from "@/lib/audio";
 import { script } from "@/lib/announcer";
 import { TEAM_NAME, TOTAL_ROUNDS, type Team } from "@/lib/types";
+import { useCountdown, type Clock } from "@/lib/useCountdown";
 import { useWakeLock } from "@/lib/useWakeLock";
 import type { UseGame } from "@/lib/useGame";
 
@@ -43,7 +44,7 @@ import type { UseGame } from "@/lib/useGame";
  */
 export default function TvStage({ g, code }: { g: UseGame; code: string }) {
   const router = useRouter();
-  const { game, players, state, myId, isHost, busy, error, remainingMs, phaseTotalMs } = g;
+  const { game, players, state, myId, isHost, busy, error, clock } = g;
 
   const [shake, setShake] = useState(0);
   const [fly, setFly] = useState<{ to: Team; points: number; key: number } | null>(null);
@@ -214,10 +215,10 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
               />
             )}
 
-            {phase === "INTRO" && <IntroSplash remainingMs={remainingMs} totalMs={phaseTotalMs} />}
+            {phase === "INTRO" && <IntroSplash clock={clock} />}
 
             {phase === "FACE_OFF" && (
-              <FaceOff game={game} players={players} remainingMs={remainingMs} />
+              <FaceOff game={game} players={players} clock={clock} />
             )}
 
             {showBoard && (
@@ -226,8 +227,7 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
                   <StealScene
                     game={game}
                     players={players}
-                    remainingMs={remainingMs}
-                    phaseTotalMs={phaseTotalMs}
+                    clock={clock}
                     result={phase === "STEAL_RESULT"}
                   />
                 )}
@@ -239,8 +239,7 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
                   <div className="panel flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
                     <div className="min-w-[8rem] flex-1">
                       <Timer
-                        remainingMs={remainingMs}
-                        totalMs={phaseTotalMs}
+                        clock={clock}
                         label={
                           phase === "BUZZING"
                             ? "Buzzez !"
@@ -292,8 +291,7 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
                 game={game}
                 finale={state.finale}
                 players={players}
-                remainingMs={remainingMs}
-                phaseTotalMs={phaseTotalMs}
+                clock={clock}
               />
             )}
 
@@ -368,7 +366,9 @@ export default function TvStage({ g, code }: { g: UseGame; code: string }) {
 
 /* -------------------------------------------------------------------- */
 
-function IntroSplash({ remainingMs, totalMs }: { remainingMs: number; totalMs: number }) {
+function IntroSplash({ clock }: { clock: Clock }) {
+  const remainingMs = useCountdown(clock, 5);
+  const totalMs = clock.totalMs;
   return (
     <div className="screen relative overflow-hidden px-4 py-12 text-center sm:py-20">
       <Confetti burst={1} />

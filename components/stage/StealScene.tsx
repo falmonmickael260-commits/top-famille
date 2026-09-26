@@ -4,6 +4,7 @@ import { playerName } from "@/lib/api";
 import Timer from "@/components/stage/Timer";
 import { TEAM_DOT, TEAM_NAME } from "@/lib/types";
 import type { Game, Player, Team } from "@/lib/types";
+import type { Clock } from "@/lib/useCountdown";
 
 /**
  * LE VOL DE MANCHE. Gros plan sur les deux equipes : celle qui a accumule les
@@ -16,14 +17,12 @@ import type { Game, Player, Team } from "@/lib/types";
 export default function StealScene({
   game,
   players,
-  remainingMs,
-  phaseTotalMs,
+  clock,
   result = false,
 }: {
   game: Game;
   players: Player[];
-  remainingMs: number;
-  phaseTotalMs: number;
+  clock: Clock;
   result?: boolean;
 }) {
   const stealTeam = (game.steal_team ?? "R") as Team;
@@ -50,12 +49,7 @@ export default function StealScene({
           </p>
 
           <div className="mx-auto mt-6 max-w-sm">
-            <Timer
-              remainingMs={remainingMs}
-              totalMs={phaseTotalMs}
-              label="Concertez-vous"
-              big
-            />
+            <Timer clock={clock} label="Concertez-vous" big />
           </div>
 
           <div className="mt-6 rounded-xl border border-gold/30 bg-gold/[0.07] px-4 py-3 text-center">

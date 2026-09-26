@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Timer from "@/components/stage/Timer";
 import { play } from "@/lib/audio";
+import type { Clock } from "@/lib/useCountdown";
 
 /**
  * LE CHAMP DE REPONSE. Un seul champ, un seul bouton, un chrono au-dessus.
@@ -15,8 +16,7 @@ import { play } from "@/lib/audio";
 export default function AnswerForm({
   title,
   hint,
-  remainingMs,
-  totalMs,
+  clock,
   busy,
   tone = "gold",
   autoFocus = true,
@@ -25,8 +25,7 @@ export default function AnswerForm({
 }: {
   title: string;
   hint?: string;
-  remainingMs: number;
-  totalMs: number;
+  clock: Clock;
   busy: boolean;
   tone?: "gold" | "r" | "b";
   autoFocus?: boolean;
@@ -45,12 +44,20 @@ export default function AnswerForm({
   resetKey: number | string;
   onSubmit: (value: string) => void;
 }) {
-  const [value, setValue] = useState("");
+  /*
+   * Le champ est NON CONTROLE, volontairement.
+   *
+   * Avec `value` dans un state React, chaque lettre tapee provoquait un
+   * rendu du formulaire — et le parent en provoquait dix de plus par seconde
+   * a cause du chrono. Sur un telephone, la saisie devenait poussive et le
+   * curseur sautait. Ici la valeur vit dans le DOM, on ne la lit qu'a l'envoi :
+   * taper ne declenche plus aucun rendu.
+   */
   const [sent, setSent] = useState(false);
   const ref = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setValue("");
+    if (ref.current) ref.current.value = "";
     setSent(false);
     if (autoFocus) ref.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,7 +68,7 @@ export default function AnswerForm({
   }, [autoFocus]);
 
   const send = () => {
-    const v = value.trim();
+    const v = (ref.current?.value ?? "").trim();
     if (!v || sent || busy) return;
     setSent(true);
     play("ui");
@@ -78,7 +85,7 @@ export default function AnswerForm({
         send();
       }}
     >
-      <Timer remainingMs={remainingMs} totalMs={totalMs} label={title} big />
+      <Timer clock={clock} label={title} big />
 
       {hint && (
         <p className="mt-3 text-center text-[13px] leading-snug text-white/60">{hint}</p>
@@ -95,13 +102,12 @@ export default function AnswerForm({
         autoCapitalize="none"
         spellCheck={false}
         enterKeyHint="send"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        defaultValue=""
       />
 
       <button
         type="submit"
-        disabled={sent || busy || value.trim() === ""}
+        disabled={sent || busy}
         className={`btn ${btn} mt-4 w-full py-5 text-lg`}
       >
         {sent ? "Envoyé…" : "Valider"}

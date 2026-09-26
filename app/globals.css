@@ -285,10 +285,10 @@ body {
   z-index: 1;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   transform: translate3d(var(--cam-x), var(--cam-y), 0) scale(var(--cam-scale));
-  filter: blur(var(--cam-blur));
-  transition:
-    transform 780ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 600ms ease;
+  /* Pas de `filter` ici : il valait toujours blur(0), mais sa seule presence
+     forcait le navigateur a composer tout le plateau dans une couche a part,
+     pour rien. */
+  transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
 
@@ -913,4 +913,55 @@ body {
 ::-webkit-scrollbar-thumb {
   background: rgba(150, 190, 255, 0.22);
   border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------------
+   13. ALLEGEMENT SUR TELEPHONE
+
+   Le decor est fait pour une television. Sur un telephone, il n'apporte
+   rien — c'est une telecommande, pas un spectacle — et il coute cher :
+
+     - trois cones de projecteur de 46vmax x 130vmax en degrade conique,
+       floutes et animes en boucle ;
+     - un `backdrop-filter: blur()` sur chaque panneau, dont plusieurs sont
+       visibles en meme temps.
+
+   Les deux forcent une recomposition permanente de la page. Sur un mobile
+   d'entree ou de milieu de gamme, ca mange le budget d'image et ca se sent
+   au doigt : le buzzer repond mou, la frappe traine.
+
+   On garde donc le fond, le sol et les rampes LED (statiques, gratuits) et
+   on coupe ce qui bouge et ce qui floute.
+   --------------------------------------------------------------------- */
+
+@media (pointer: coarse) and (max-width: 900px) {
+  .spot-b,
+  .spot-c {
+    display: none;
+  }
+
+  .spot-a {
+    filter: none;
+    animation: none;
+    opacity: 0.55;
+  }
+
+  .studio-reflect {
+    filter: none;
+  }
+
+  .panel,
+  .panel-solid {
+    backdrop-filter: none;
+  }
+
+  .slam {
+    backdrop-filter: none;
+  }
+
+  /* La grille en perspective reste, mais sans masque anime. */
+  .led-rail {
+    animation: none;
+    opacity: 0.3;
+  }
 }

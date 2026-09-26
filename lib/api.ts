@@ -56,7 +56,9 @@ export function cleanError(error: unknown): string {
     return "Erreur serveur sur la partie. Recharge la page.";
   }
   if (raw.includes("Could not find the function") || raw.includes("PGRST202")) {
-    return "Les fonctions SQL sont absentes de Supabase. Execute supabase/schema.sql dans le SQL Editor.";
+    // Deux causes possibles, et la seconde est sournoise : les fonctions
+    // existent, mais PostgREST garde un cache de schema perime.
+    return "Fonctions SQL introuvables cote API. Rejoue supabase/schema.sql dans le SQL Editor — il se termine par un « notify pgrst » qui recharge le cache.";
   }
   if (raw.includes("Anonymous sign-ins are disabled")) {
     return "Active Anonymous Sign-In dans Supabase (Authentication > Providers > Anonymous).";
@@ -176,6 +178,23 @@ export const hostSkip = (code: string) =>
 /* ------------------------------------------------------------------ */
 /*  Lectures directes (RLS : select seul)                              */
 /* ------------------------------------------------------------------ */
+
+/**
+ * Les joueurs d'une partie, sans reconstruire tout l'etat.
+ *
+ * Une arrivee, un depart ou un passage hors ligne ne changent rien au
+ * tableau des reponses : redemander tf_state pour ca coutait un aller-retour
+ * complet a chaque fois, sur chaque telephone.
+ */
+export async function fetchPlayers(gameId: string): Promise<Player[]> {
+  const { data, error } = await supabase
+    .from("tf_players")
+    .select("*")
+    .eq("game_id", gameId)
+    .order("joined_at", { ascending: true });
+  if (error) throw new Error(cleanError(error));
+  return (data as Player[]) ?? [];
+}
 
 export async function gameExists(code: string): Promise<boolean> {
   const { data, error } = await supabase

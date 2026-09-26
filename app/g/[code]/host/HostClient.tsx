@@ -87,7 +87,7 @@ export default function HostClient({ code }: { code: string }) {
               <Row k="phase_seq" v={String(game.phase_seq)} />
               <Row
                 k="chrono"
-                v={game.phase_ends_at ? `${formatSeconds(g.remainingMs)} s` : "—"}
+                v={game.phase_ends_at ? "en cours" : "—"}
               />
               <Row k="manche" v={`${game.round_number} / ${TOTAL_ROUNDS} (×${game.round_multiplier})`} />
               <Row k="contrôle" v={game.control_team ?? "—"} />
@@ -117,12 +117,7 @@ export default function HostClient({ code }: { code: string }) {
         {game.phase_ends_at && (
           <div className="panel mt-4 flex flex-wrap items-center gap-5 px-4 py-3">
             <div className="min-w-[8rem] flex-1">
-              <Timer
-                remainingMs={g.remainingMs}
-                totalMs={g.phaseTotalMs}
-                label={game.phase}
-                ticking={false}
-              />
+              <Timer clock={g.clock} label={game.phase} ticking={false} />
             </div>
             {game.control_team && <Strikes count={game.strikes} size="sm" />}
           </div>

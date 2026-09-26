@@ -3,6 +3,7 @@
 import { playerName } from "@/lib/api";
 import { TEAM_DOT } from "@/lib/types";
 import type { Game, Player } from "@/lib/types";
+import { useCountdown, type Clock } from "@/lib/useCountdown";
 
 /**
  * LE FACE-A-FACE. Les deux duellistes arrivent des deux bords, se croisent au
@@ -14,12 +15,13 @@ import type { Game, Player } from "@/lib/types";
 export default function FaceOff({
   game,
   players,
-  remainingMs,
+  clock,
 }: {
   game: Game;
   players: Player[];
-  remainingMs: number;
+  clock: Clock;
 }) {
+  const remainingMs = useCountdown(clock, 10);
   const nR = playerName(players, game.faceoff_r);
   const nB = playerName(players, game.faceoff_b);
 
