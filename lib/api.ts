@@ -69,6 +69,16 @@ export function cleanError(error: unknown): string {
   if (raw.includes("No suitable key") || raw.includes("wrong key type")) {
     return "La cle Supabase ne correspond pas a ce projet. Verifie NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.";
   }
+  if (raw.includes("rate limit") || raw.includes("Request rate limit reached")) {
+    /*
+     * Supabase limite les connexions anonymes par ADRESSE IP. Dans un salon,
+     * tous les telephones sortent par la meme box : quelques rechargements de
+     * page suffisaient a bloquer toute la tablee, avec un message technique
+     * incomprehensible. La limite du projet a ete relevee, mais si on la
+     * touche quand meme, autant dire quoi faire.
+     */
+    return "Trop de connexions depuis ce reseau en peu de temps. Attends une minute, puis reessaie — inutile de recharger la page en boucle.";
+  }
   if (raw.includes("Failed to fetch") || raw.includes("NetworkError")) {
     return "Connexion au serveur impossible. Verifie ta connexion internet.";
   }

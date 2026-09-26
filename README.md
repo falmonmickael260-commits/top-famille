@@ -95,6 +95,15 @@ d'un coup :
 
 **Authentication → Providers → Anonymous** → *Enable*.
 
+⚠️ **Et relève la limite de connexions anonymes.** Supabase la fixe par défaut
+à **30 par heure et par adresse IP**. Dans un salon, tous les téléphones
+sortent par la même box : six joueurs, quelques rechargements de page, et plus
+personne ne peut rejoindre — avec un message technique incompréhensible.
+
+**Authentication → Rate Limits → *Rate limit for anonymous users*** → 200.
+
+`npm run push:schema` avec un jeton d'accès le fait pour toi.
+
 Les joueurs n'ont ni email, ni mot de passe, ni compte : chacun reçoit un UUID
 Supabase à la première visite, réutilisé ensuite. C'est la clé primaire de
 `tf_players`.
@@ -544,6 +553,8 @@ Sur un vrai réseau local, les téléphones se connectent à
 | Les joueurs n'apparaissent pas en direct | Realtime inactif | Database → Replication → coche `tf_games`, `tf_players`, `tf_events` |
 | Aucune question ne s'affiche | bloc QUESTIONS non exécuté | `npm run build:schema` puis rejoue le bloc |
 | « Cette équipe est complète » | 6 joueurs déjà présents | rejoins l'autre équipe |
+| « Trop de connexions depuis ce réseau » | limite anonyme Supabase (30/h par IP) | Authentication → Rate Limits → *anonymous users* → 200 |
+| Le champ d'écriture passe sous le clavier | viewport sans `interactive-widget` | déjà corrigé — vérifie que le meta contient `interactive-widget=resizes-content` |
 | Toute la mise en page a disparu | Tailwind n'a rien généré | `tailwind.config.js` doit rester en **.js** et ses globs ancrés sur `__dirname` (voir les commentaires du fichier) |
 
 ---

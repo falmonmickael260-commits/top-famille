@@ -283,6 +283,9 @@ body {
 .cam {
   position: relative;
   z-index: 1;
+  /* Anton deborde sa propre boite (line-height 0.88) : sans cette marge, le
+     haut des lettres du logo touche le bord de l'ecran. */
+  padding-top: 2px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   transform: translate3d(var(--cam-x), var(--cam-y), 0) scale(var(--cam-scale));
   /* Pas de `filter` ici : il valait toujours blur(0), mais sa seule presence
@@ -646,6 +649,19 @@ body {
   padding: 1.05rem 1rem;
 }
 
+/* Champ vide au moment de valider : on le montre, on ne reste pas muet. */
+.field-vide {
+  border-color: rgba(255, 59, 92, 0.8);
+  box-shadow: 0 0 0 4px rgba(255, 59, 92, 0.18);
+  animation: field-secoue 420ms ease;
+}
+@keyframes field-secoue {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  45% { transform: translateX(6px); }
+  70% { transform: translateX(-3px); }
+}
+
 .label {
   font-family: var(--font-mono);
   font-size: 0.66rem;
@@ -989,6 +1005,22 @@ body {
    --------------------------------------------------------------------- */
 
 @media (pointer: coarse) and (max-width: 900px) {
+  /*
+   * PAS DE MOUVEMENT DE CAMERA SUR PETIT ECRAN.
+   *
+   * Le zoom de realisation (jusqu'a x1,16) agrandit le plateau autour de son
+   * centre : sur une television, les marges l'absorbent. Sur un telephone, il
+   * pousse le haut hors de l'ecran — le logo et le bandeau du haut se
+   * retrouvaient coupes. Mesure avant correction : le conteneur commencait a
+   * -24 px, le titre a -12 px.
+   */
+  .cam {
+    transform: none !important;
+    --cam-scale: 1;
+    --cam-x: 0px;
+    --cam-y: 0px;
+  }
+
   .spot-b,
   .spot-c {
     display: none;

@@ -134,6 +134,16 @@ for (const [fn, args] of RPCS) {
   }
 }
 
+/* ---------- 4 bis. La limite de connexions anonymes ---------- */
+head("4 bis. Limite de connexions anonymes");
+warn(
+  "Supabase limite les connexions anonymes PAR ADRESSE IP",
+  "Dans un salon, tous les telephones sortent par la meme box. La valeur par\n" +
+    "      defaut (30 par heure) suffit a bloquer une tablee apres quelques\n" +
+    "      rechargements. A verifier dans Authentication > Rate Limits >\n" +
+    "      « Rate limit for anonymous users » — 200 est confortable."
+);
+
 /* ---------- 5. Le panel de questions ---------- */
 head("5. Panel de questions");
 

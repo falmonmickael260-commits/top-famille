@@ -237,12 +237,23 @@ let publishable = null;
 
 /* ---------- L'authentification anonyme ---------- */
 {
+  /*
+   * On active le provider ET on releve la limite de connexions.
+   *
+   * Supabase limite les connexions anonymes a 30 par heure et par ADRESSE IP.
+   * Dans un salon, tous les telephones sortent par la meme box : six joueurs
+   * et quelques rechargements suffisent a bloquer toute la tablee. 200 laisse
+   * de la marge pour une soiree entiere, en restant borne.
+   */
   const res2 = await api("/config/auth", {
     method: "PATCH",
-    body: JSON.stringify({ external_anonymous_users_enabled: true }),
+    body: JSON.stringify({
+      external_anonymous_users_enabled: true,
+      rate_limit_anonymous_users: 200,
+    }),
   });
   if (res2.ok) {
-    console.log(`  ${C.g("✓")} authentification anonyme activee`);
+    console.log(`  ${C.g("✓")} authentification anonyme activee  ${C.dim("(limite 200/h par IP)")}`);
   } else {
     const body = await res2.text();
     console.log(`  ${C.y("!")} auth anonyme non activee automatiquement (HTTP ${res2.status})`);

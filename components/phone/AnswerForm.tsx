@@ -54,6 +54,7 @@ export default function AnswerForm({
    * taper ne declenche plus aucun rendu.
    */
   const [sent, setSent] = useState(false);
+  const [vide, setVide] = useState(false);
   const ref = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -108,7 +109,17 @@ export default function AnswerForm({
 
   const send = () => {
     const v = (ref.current?.value ?? "").trim();
-    if (!v || sent || busy) return;
+    if (sent || busy) return;
+
+    // Champ vide : avant, le bouton ne faisait rien, sans un mot. Le joueur
+    // croyait avoir valide et perdait son tour a attendre.
+    if (!v) {
+      setVide(true);
+      ref.current?.focus();
+      window.setTimeout(() => setVide(false), 700);
+      return;
+    }
+
     setSent(true);
     play("ui");
     onSubmit(v);
@@ -132,7 +143,7 @@ export default function AnswerForm({
 
       <input
         ref={ref}
-        className="field field-xl mt-5"
+        className={`field field-xl mt-5 ${vide ? "field-vide" : ""}`}
         placeholder="ta réponse"
         maxLength={40}
         disabled={sent}
@@ -152,8 +163,14 @@ export default function AnswerForm({
         {sent ? "Envoyé…" : "Valider"}
       </button>
 
-      <p className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/28">
-        accents, majuscules et articles n&apos;ont pas d&apos;importance
+      <p
+        className={`mt-3 text-center font-mono text-[9px] uppercase tracking-[0.18em] ${
+          vide ? "text-teamR" : "text-white/28"
+        }`}
+      >
+        {vide
+          ? "écris quelque chose avant de valider"
+          : "accents, majuscules et articles n'ont pas d'importance"}
       </p>
     </form>
   );

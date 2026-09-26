@@ -701,6 +701,110 @@ step("Cas limites de composition d'equipe");
   check("le 7e joueur peut rejoindre l'autre equipe", !ok.error, ok.error ?? "");
 }
 
+step("Ce qui arrive quand les joueurs partent");
+{
+  /* Trois situations qui n'avaient jamais ete testees, et qui arrivent pour
+     de vrai dans un salon : l'hote ferme son onglet, toute une equipe se
+     deconnecte en plein tour, et quelqu'un essaie d'entrer pendant que le
+     show demarre. Aucune ne doit figer la partie. */
+  const C4 = "SIM4";
+  const eq = [
+    { id: "00000000-0000-4000-8000-0000000000d1", name: "Hote", team: "R" },
+    { id: "00000000-0000-4000-8000-0000000000d2", name: "R2", team: "R" },
+    { id: "00000000-0000-4000-8000-0000000000d3", name: "B1", team: "B" },
+    { id: "00000000-0000-4000-8000-0000000000d4", name: "B2", team: "B" },
+  ];
+  await as(eq[0], "tf_create", [C4, eq[0].name, "R"]);
+  for (const p of eq.slice(1)) await as(p, "tf_join", [C4, p.name, p.team]);
+
+  // L'hote quitte depuis le lobby : la main doit passer a quelqu'un d'autre.
+  await as(eq[0], "tf_leave", [C4]);
+  let s4 = await as(eq[1], "tf_state", [C4]);
+  check("l'hote qui part passe la main", s4.game.host_player_id !== eq[0].id,
+    `nouvel hote : ${s4.players.find((p) => p.id === s4.game.host_player_id)?.name ?? "aucun"}`);
+
+  const nouvelHote = eq.find((p) => p.id === s4.game.host_player_id) ?? eq[1];
+  const r = await tryAs(nouvelHote, "tf_start", [C4]);
+  check("le nouvel hote peut lancer le show", !r.error, r.error ?? "");
+
+  // Quelqu'un tente d'entrer une fois le show lance.
+  const retardataire = { id: "00000000-0000-4000-8000-0000000000d9", name: "Tard" };
+  const e = await tryAs(retardataire, "tf_join", [C4, "Tard", "R"]);
+  check("on ne rejoint pas un show deja lance", /deja commence/i.test(e.error ?? ""),
+    e.error ?? "accepte !");
+
+  // Toute une equipe devient silencieuse en plein jeu.
+  let n = 0;
+  while (n++ < 200) {
+    s4 = await as(nouvelHote, "tf_state", [C4]);
+    if (s4.game.phase === "TEAM_TURN" || s4.game.phase === "VICTORY") break;
+    if (s4.game.phase === "BUZZING") {
+      await as(eq.find((p) => p.id === s4.game.faceoff_r) ?? eq[1], "tf_buzz", [C4]);
+      continue;
+    }
+    if (s4.game.phase === "ANSWERING") {
+      const who = eq.find((p) => p.id === s4.game.buzz_winner);
+      const a = hiddenLabel(s4);
+      if (who && a) await as(who, "tf_submit", [C4, a]);
+      else await expire(C4);
+      continue;
+    }
+    await expire(C4);
+  }
+
+  if (s4.game.phase === "TEAM_TURN") {
+    const equipe = s4.game.control_team;
+    await db.query(
+      `update public.tf_players set last_seen = now() - interval '5 minutes'
+        where game_id = (select id from public.tf_games where code = $1) and team = $2`,
+      [C4, equipe]
+    );
+    let m = 0;
+    while (m++ < 120) {
+      s4 = await as(nouvelHote, "tf_state", [C4]);
+      if (s4.game.phase !== "TEAM_TURN") break;
+      await expire(C4);
+    }
+    check("une equipe entierement hors ligne ne fige pas la partie",
+      s4.game.phase !== "TEAM_TURN", `phase ${s4.game.phase}`);
+  } else {
+    check("une equipe entierement hors ligne ne fige pas la partie", true, "tour non atteint");
+  }
+
+  // Et la partie doit pouvoir aller au bout malgre tout.
+  let k = 0;
+  while (k++ < 400) {
+    s4 = await as(nouvelHote, "tf_state", [C4]);
+    if (s4.game.phase === "VICTORY") break;
+    const g4 = s4.game;
+    if (g4.phase === "BUZZING") {
+      const d = eq.find((p) => p.id === g4.faceoff_r || p.id === g4.faceoff_b);
+      if (d) await as(d, "tf_buzz", [C4]);
+      else await expire(C4);
+      continue;
+    }
+    if (g4.phase === "ANSWERING" || g4.phase === "TEAM_TURN") {
+      const who = eq.find((p) => p.id === (g4.active_player_id ?? g4.buzz_winner));
+      const a = hiddenLabel(s4);
+      if (who && a) await as(who, "tf_submit", [C4, a]);
+      else await expire(C4);
+      continue;
+    }
+    if (g4.phase === "FINALE_PLAYER_ONE" || g4.phase === "FINALE_PLAYER_TWO") {
+      const pid = g4.finale_slot === 1 ? g4.finale_p1 : g4.finale_p2;
+      const who = eq.find((p) => p.id === pid);
+      const pr = s4.finale?.questions?.[g4.finale_q_index]?.prompt;
+      const q = pr ? BY_PROMPT.get(pr) : null;
+      if (who && q) await as(who, "tf_submit", [C4, q.answers[0].label]);
+      else await expire(C4);
+      continue;
+    }
+    await expire(C4);
+  }
+  check("la partie va jusqu'a la victoire malgre les departs",
+    s4.game.phase === "VICTORY", `${s4.game.phase} apres ${k} iterations`);
+}
+
 step("Les verrous de securite");
 {
   // Ce qu'un client verrait s'il tentait de lire les reponses directement.
