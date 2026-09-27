@@ -303,6 +303,31 @@ body {
 .cam[data-shot="finale"]  { --cam-scale: 1.07; --cam-y: 6px; }
 .cam[data-shot="victory"] { --cam-scale: 0.96; --cam-y: -10px; }
 
+/*
+ * LE ZOOM MANGEAIT LE PLATEAU LUI-MEME, PAS SEULEMENT SES MARGES.
+ *
+ * .cam fait `w-full max-w-[110rem]` : au-dela de 110rem de large, l'ecran a
+ * de la marge de chaque cote du plateau et le zoom l'utilise pour de vrai —
+ * l'effet cinema recule ou avance sans toucher au contenu. EN DESSOUS de
+ * 110rem (donc sur a peu pres tous les ordinateurs et TV du marche, pas
+ * seulement les petits ecrans), .cam occupe deja 100% de la largeur : il
+ * n'y a plus aucune marge a manger, et un scale() zoome alors sur le
+ * contenu reel. Mesure avant correction, sur un ecran de 1500px avec le
+ * cadrage "closeup" (x1.16) : le score d'une equipe et la moitie du nom
+ * des joueurs de l'autre equipe disparaissaient hors champ, des deux
+ * cotes de l'ecran. On coupe donc le zoom la ou il n'a plus de marge pour
+ * s'exercer, exactement comme la coupure telephone plus bas neutralise le
+ * mouvement de camera faute de place.
+ */
+@media (max-width: 130rem) {
+  .cam {
+    transform: none !important;
+    --cam-scale: 1;
+    --cam-x: 0px;
+    --cam-y: 0px;
+  }
+}
+
 /* Petit soubresaut de camera sur un impact (faute, buzz, vol). */
 @keyframes cam-shake {
   0%, 100% { transform: translate3d(0, 0, 0); }
@@ -1006,20 +1031,10 @@ body {
 
 @media (pointer: coarse) and (max-width: 900px) {
   /*
-   * PAS DE MOUVEMENT DE CAMERA SUR PETIT ECRAN.
-   *
-   * Le zoom de realisation (jusqu'a x1,16) agrandit le plateau autour de son
-   * centre : sur une television, les marges l'absorbent. Sur un telephone, il
-   * pousse le haut hors de l'ecran — le logo et le bandeau du haut se
-   * retrouvaient coupes. Mesure avant correction : le conteneur commencait a
-   * -24 px, le titre a -12 px.
+   * Le zoom de camera est deja coupe pour tout ecran <= 130rem par la regle
+   * generale de la section 2 (il n'y avait plus de marge a manger bien avant
+   * la taille d'un telephone). Ce qui suit reste specifique au tactile.
    */
-  .cam {
-    transform: none !important;
-    --cam-scale: 1;
-    --cam-x: 0px;
-    --cam-y: 0px;
-  }
 
   .spot-b,
   .spot-c {

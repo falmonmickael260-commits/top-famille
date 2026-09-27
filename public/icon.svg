@@ -1,6 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <!--
+      gradientUnits="userSpaceOnUse" : le degrade par defaut se calcule sur
+      la boite englobante DE CHAQUE FORME. Le trait vertical du micro a une
+      largeur de boite nulle et la barre du socle une hauteur nulle - un
+      degrade en boite englobante y est degenere et ne peint rien (le micro
+      perdait son pied et son socle, silencieusement, dans tout moteur SVG
+      qui applique la regle a la lettre). En coordonnees absolues, le
+      degrade reste bien defini quelle que soit la forme qui l'utilise.
+    -->
+    <linearGradient id="g" x1="14" y1="9" x2="46" y2="56" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#ffe08a"/>
       <stop offset="0.5" stop-color="#f5c344"/>
       <stop offset="1" stop-color="#b8860a"/>

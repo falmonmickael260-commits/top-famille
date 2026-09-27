@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import PwaRegister from "@/components/PwaRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,7 +8,22 @@ export const metadata: Metadata = {
     "Jeu televise multijoueur en temps reel. Deux equipes, un plateau sur la television, un telephone par joueur.",
   applicationName: "TOP FAMILLE",
   authors: [{ name: "Lewishalmito" }],
-  icons: { icon: "/icon.svg" },
+  // manifest.webmanifest + les icones ci-dessous, c'est ce qui transforme le
+  // site en application installable : "Ajouter a l'ecran d'accueil" sur
+  // iPhone, "Installer l'application" dans Chrome/Android. Une fois
+  // installee, elle s'ouvre dans sa propre fenetre, sans barre d'adresse.
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-touch-icon.png",
+  },
+  // iOS ignore manifest.webmanifest pour l'ecran d'accueil : c'est ce bloc,
+  // et lui seul, qui lui dit que l'app doit s'ouvrir sans chrome Safari.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TOP FAMILLE",
+  },
 };
 
 export const viewport: Viewport = {
@@ -36,6 +52,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <head>
+        {/*
+          iOS ignore le manifest pour decider du mode plein ecran : sans CE
+          meta precis (le prefixe "apple-", pas le generique que Next genere
+          tout seul via appleWebApp), Safari rouvre l'icone ajoutee a l'ecran
+          d'accueil dans un onglet Safari normal, barre d'adresse comprise,
+          au lieu du mode autonome sans chrome.
+        */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         {/* Polices libres (OFL) servies par Google Fonts, avec repli systeme
             complet dans globals.css : si le reseau manque, le plateau reste
             lisible. Anton porte les gros titres, Inter le texte, JetBrains
@@ -47,7 +71,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }
