@@ -79,12 +79,36 @@ export default function AnswerForm({
    *
    * On le ramene donc au centre a l'ouverture, puis a chaque changement de
    * la zone visible.
+   *
+   * L'ECRAN QUI TREMBLE PENDANT LA FRAPPE.
+   *
+   * `visualViewport` envoie souvent PLUSIEURS evenements "resize" coup sur
+   * coup pendant l'animation d'ouverture du clavier Android (et parfois
+   * pendant la frappe elle-meme, quand la barre de suggestions apparait ou
+   * disparait). Chacun relancait un `scrollIntoView({behavior:"smooth"})`
+   * SANS attendre le precedent : plusieurs scrolls fluides se chevauchaient,
+   * et le joueur voyait l'ecran vibrer / clignoter au lieu de rester stable.
+   * Deux garde-fous : on ignore l'evenement si le champ est deja
+   * confortablement visible (le cas le plus frequent une fois le clavier
+   * installe), et on laisse les tics rapprochés se calmer avant de scroller
+   * pour de vrai.
    */
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    let debounce = 0;
+
+    const dejaVisible = () => {
+      const vv = window.visualViewport;
+      const top = vv?.offsetTop ?? 0;
+      const bottom = top + (vv?.height ?? window.innerHeight);
+      const r = el.getBoundingClientRect();
+      const marge = 8;
+      return r.top >= top + marge && r.bottom <= bottom - marge;
+    };
 
     const ramener = () => {
+      if (dejaVisible()) return;
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     };
 
@@ -97,13 +121,16 @@ export default function AnswerForm({
 
     const vv = window.visualViewport;
     const onViewport = () => {
-      if (document.activeElement === el) ramener();
+      if (document.activeElement !== el) return;
+      window.clearTimeout(debounce);
+      debounce = window.setTimeout(ramener, 80);
     };
     vv?.addEventListener("resize", onViewport);
 
     return () => {
       el.removeEventListener("focus", onFocus);
       vv?.removeEventListener("resize", onViewport);
+      window.clearTimeout(debounce);
     };
   }, [resetKey]);
 
