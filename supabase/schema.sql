@@ -1351,8 +1351,19 @@ begin
     end if;
 
   elsif v_game.phase = 'ROUND_RESULT' then
+    /*
+     * Le client affiche le MEME encart de resultat pendant ROUND_RESULT et
+     * ROUND_TRANSITION (TvStage.tsx : RoundResult sur les deux phases), en
+     * lisant `winner`/`points`/`stolen` dans last_event. Sans les reprendre
+     * ici, le passage a ROUND_TRANSITION ecrasait last_event par un evenement
+     * qui n'a que `round`/`next`/`last` : le bon resultat ("+27 pour
+     * l'equipe rouge") s'affichait une poignee de secondes puis se faisait
+     * remplacer, a l'ecran, par « Personne n'a trouve — aucun point »,
+     * meme quand une equipe venait de marquer.
+     */
     perform public._tf_phase(p_game_id, 'ROUND_TRANSITION', 'round_transition',
-      jsonb_build_object('round', v_game.round_number,
+      coalesce(v_game.last_event, '{}'::jsonb) || jsonb_build_object(
+                         'round', v_game.round_number,
                          'next', v_game.round_number + 1,
                          'last', v_game.round_number >= public.tf_rounds()));
 

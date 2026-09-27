@@ -250,20 +250,25 @@ returns integer language sql immutable as $$
   select case p_phase
     when 'INTRO'             then 9
     when 'FACE_OFF'          then 5
-    when 'BUZZING'           then 10
-    when 'ANSWERING'         then 10
+    when 'BUZZING'           then 12
+    -- 10 s etaient trop courtes pour ecrire sur un telephone : le temps de
+    -- voir la question, de reflechir et de taper, le chrono etait passe.
+    when 'ANSWERING'         then 15
     when 'CORRECT_ANSWER'    then 3
     when 'WRONG_ANSWER'      then 3
     when 'CONTROL_GRANTED'   then 4
-    when 'TEAM_TURN'         then 25
+    -- Temps COMMUN a toute l'equipe, mis en pause pendant les animations.
+    -- Porte de 25 a 35 s : a trois ou quatre joueurs qui passent chacun leur
+    -- tour, 25 s laissaient a peine le temps d'une reponse par personne.
+    when 'TEAM_TURN'         then 35
     when 'THREE_STRIKES'     then 4
-    when 'STEAL'             then 20
+    when 'STEAL'             then 25
     when 'STEAL_RESULT'      then 5
     when 'ROUND_RESULT'      then 9
     when 'ROUND_TRANSITION'  then 5
     when 'FINALE_INTRO'      then 7
-    when 'FINALE_PLAYER_ONE' then 20
-    when 'FINALE_PLAYER_TWO' then 20
+    when 'FINALE_PLAYER_ONE' then 25
+    when 'FINALE_PLAYER_TWO' then 25
     when 'FINALE_REVEAL'     then 4
     else null
   end
@@ -1356,8 +1361,19 @@ begin
     end if;
 
   elsif v_game.phase = 'ROUND_RESULT' then
+    /*
+     * Le client affiche le MEME encart de resultat pendant ROUND_RESULT et
+     * ROUND_TRANSITION (TvStage.tsx : RoundResult sur les deux phases), en
+     * lisant `winner`/`points`/`stolen` dans last_event. Sans les reprendre
+     * ici, le passage a ROUND_TRANSITION ecrasait last_event par un evenement
+     * qui n'a que `round`/`next`/`last` : le bon resultat ("+27 pour
+     * l'equipe rouge") s'affichait une poignee de secondes puis se faisait
+     * remplacer, a l'ecran, par « Personne n'a trouve — aucun point »,
+     * meme quand une equipe venait de marquer.
+     */
     perform public._tf_phase(p_game_id, 'ROUND_TRANSITION', 'round_transition',
-      jsonb_build_object('round', v_game.round_number,
+      coalesce(v_game.last_event, '{}'::jsonb) || jsonb_build_object(
+                         'round', v_game.round_number,
                          'next', v_game.round_number + 1,
                          'last', v_game.round_number >= public.tf_rounds()));
 

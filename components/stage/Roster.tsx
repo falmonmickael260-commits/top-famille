@@ -69,57 +69,73 @@ export default function Roster({
               }}
               exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.18 } }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
-              className="podium flex items-center gap-2 px-2.5 py-2"
+              className="podium flex flex-col gap-1 px-2.5 py-2"
               data-team={team}
               data-active={active || duel ? "true" : "false"}
               data-off={!p.live ? "true" : "false"}
             >
-              {/* Pastille de rotation : la position dans l'ordre de passage. */}
-              {order >= 0 && (
-                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/10 font-mono text-[9px] font-bold text-white/60">
-                  {order + 1}
+              {/*
+                Nom sur sa propre ligne, TOUJOURS seul avec la pastille de
+                rotation et le point de statut : avec les badges (host, a
+                lui, duel, hors ligne) sur la meme ligne, un joueur qui
+                cumulait host + a lui voyait son nom ecrase a une seule
+                lettre dans la colonne etroite du plateau TV. Les badges
+                passent donc sur une seconde ligne, qui peut passer a la
+                ligne elle-meme si plusieurs se cumulent.
+              */}
+              <div className="flex items-center gap-2">
+                {/* Pastille de rotation : la position dans l'ordre de passage. */}
+                {order >= 0 && (
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/10 font-mono text-[9px] font-bold text-white/60">
+                    {order + 1}
+                  </span>
+                )}
+                <span
+                  aria-hidden
+                  className={`h-2 w-2 shrink-0 rounded-full ${
+                    p.live ? (isR ? "bg-teamR" : "bg-teamB") : "bg-white/20"
+                  }`}
+                  style={
+                    p.live
+                      ? {
+                          boxShadow: `0 0 10px ${isR ? "#ff3b5c" : "#38a8ff"}`,
+                        }
+                      : undefined
+                  }
+                />
+                <span
+                  className={`min-w-0 flex-1 truncate font-extrabold ${
+                    active || duel ? "text-white" : "text-white/70"
+                  }`}
+                  style={{ fontSize: compact ? "0.8rem" : "clamp(0.8rem,1.2vw,0.98rem)" }}
+                >
+                  {p.name}
                 </span>
-              )}
-              <span
-                aria-hidden
-                className={`h-2 w-2 shrink-0 rounded-full ${
-                  p.live ? (isR ? "bg-teamR" : "bg-teamB") : "bg-white/20"
-                }`}
-                style={
-                  p.live
-                    ? {
-                        boxShadow: `0 0 10px ${isR ? "#ff3b5c" : "#38a8ff"}`,
-                      }
-                    : undefined
-                }
-              />
-              <span
-                className={`min-w-0 flex-1 truncate font-extrabold ${
-                  active || duel ? "text-white" : "text-white/70"
-                }`}
-                style={{ fontSize: compact ? "0.8rem" : "clamp(0.8rem,1.2vw,0.98rem)" }}
-              >
-                {p.name}
-              </span>
-              {hostId === p.id && (
-                <span className="shrink-0 font-mono text-[8px] uppercase tracking-[0.14em] text-gold/80">
-                  host
-                </span>
-              )}
-              {active && (
-                <span className="shrink-0 rounded bg-gold px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.1em] text-[#1b1200]">
-                  à lui
-                </span>
-              )}
-              {duel && !active && (
-                <span className="shrink-0 rounded bg-white/15 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-white/75">
-                  duel
-                </span>
-              )}
-              {!p.live && (
-                <span className="shrink-0 font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">
-                  hors ligne
-                </span>
+              </div>
+
+              {(hostId === p.id || active || (duel && !active) || !p.live) && (
+                <div className="flex flex-wrap items-center gap-1 pl-[1.75rem]">
+                  {hostId === p.id && (
+                    <span className="shrink-0 font-mono text-[8px] uppercase tracking-[0.14em] text-gold/80">
+                      host
+                    </span>
+                  )}
+                  {active && (
+                    <span className="shrink-0 rounded bg-gold px-1.5 py-0.5 font-mono text-[8px] font-bold uppercase tracking-[0.1em] text-[#1b1200]">
+                      à lui
+                    </span>
+                  )}
+                  {duel && !active && (
+                    <span className="shrink-0 rounded bg-white/15 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-white/75">
+                      duel
+                    </span>
+                  )}
+                  {!p.live && (
+                    <span className="shrink-0 font-mono text-[8px] uppercase tracking-[0.12em] text-white/30">
+                      hors ligne
+                    </span>
+                  )}
+                </div>
               )}
             </motion.div>
           );
