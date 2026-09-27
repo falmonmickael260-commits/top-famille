@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Loader from "@/components/Loader";
 import RulesModal, { RULES_SEEN_KEY } from "@/components/RulesModal";
 import Particles from "@/components/fx/Particles";
@@ -17,8 +18,28 @@ type Screen = "menu" | "create" | "join";
 const NAME_KEY = "tf-name";
 const LOADER_KEY = "tf-loader-seen";
 
+// Transition entre les trois écrans (menu / créer / rejoindre) : un glissé
+// discret, jamais un simple cut — c'est ce qui distingue une appli d'une page.
+const screenVariants = {
+  initial: { opacity: 0, x: 26, scale: 0.98 },
+  animate: { opacity: 1, x: 0, scale: 1 },
+  exit: { opacity: 0, x: -26, scale: 0.98 },
+};
+
+const menuListVariants = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+const menuItemVariants = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+};
+
 export default function HomePage() {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
+  const screenTransition = reduceMotion
+    ? { duration: 0.01 }
+    : { type: "spring" as const, stiffness: 340, damping: 32 };
 
   // Le loader ne rejoue pas a chaque aller-retour dans la meme session : on
   // veut l'ouverture du show, pas une animation qui se met en travers.
@@ -186,144 +207,171 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* ---------------- MENU ---------------- */}
-          {screen === "menu" && (
-            <div className="rise mt-10 space-y-3">
-              <button
-                type="button"
-                onClick={() => {
-                  play("ui");
-                  setScreen("create");
-                  setError(null);
-                }}
-                className="btn btn-gold w-full py-5 text-base"
+          <AnimatePresence mode="wait" initial={false}>
+            {screen === "menu" && (
+              <motion.div
+                key="menu"
+                variants={menuListVariants}
+                initial="initial"
+                animate="animate"
+                exit="initial"
+                transition={screenTransition}
+                className="mt-10 space-y-3"
               >
-                <span aria-hidden>🎮</span>
-                <span>Créer une partie</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  play("ui");
-                  setScreen("join");
-                  setError(null);
+                <motion.button
+                  type="button"
+                  variants={menuItemVariants}
+                  transition={screenTransition}
+                  onClick={() => {
+                    play("ui");
+                    setScreen("create");
+                    setError(null);
+                  }}
+                  className="btn btn-gold w-full py-5 text-base"
+                >
+                  <span aria-hidden>🎮</span>
+                  <span>Créer une partie</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  variants={menuItemVariants}
+                  transition={screenTransition}
+                  onClick={() => {
+                    play("ui");
+                    setScreen("join");
+                    setError(null);
+                  }}
+                  className="btn btn-blue w-full py-5 text-base"
+                >
+                  <span aria-hidden>🔑</span>
+                  <span>Rejoindre une partie</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  variants={menuItemVariants}
+                  transition={screenTransition}
+                  onClick={() => {
+                    play("ui");
+                    setRules(true);
+                  }}
+                  className="btn btn-ghost w-full py-4 text-sm"
+                >
+                  <span aria-hidden>❓</span>
+                  <span>Comment jouer</span>
+                </motion.button>
+              </motion.div>
+            )}
+
+            {/* ---------------- CREER ---------------- */}
+            {screen === "create" && (
+              <motion.form
+                key="create"
+                variants={screenVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={screenTransition}
+                className="panel panel-solid mt-10 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleCreate();
                 }}
-                className="btn btn-blue w-full py-5 text-base"
               >
-                <span aria-hidden>🔑</span>
-                <span>Rejoindre une partie</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  play("ui");
-                  setRules(true);
-                }}
-                className="btn btn-ghost w-full py-4 text-sm"
-              >
-                <span aria-hidden>❓</span>
-                <span>Comment jouer</span>
-              </button>
-            </div>
-          )}
-
-          {/* ---------------- CREER ---------------- */}
-          {screen === "create" && (
-            <form
-              className="panel panel-solid pop mt-10 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleCreate();
-              }}
-            >
-              <h2 className="display text-xl text-white">Créer une partie</h2>
-              <p className="mt-1.5 text-[13px] text-white/55">
-                Tu deviens <b className="text-gold">host</b>. Le plateau
-                s&apos;ouvrira sur cet écran — mets-le sur la télévision, et fais
-                rejoindre les joueurs avec le code.
-              </p>
-
-              <label className="label mt-5" htmlFor="c-name">
-                Ton pseudo
-              </label>
-              <input
-                id="c-name"
-                className="field"
-                placeholder="Mickaël"
-                maxLength={18}
-                autoComplete="nickname"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-
-              <TeamPicker value={team} onChange={setTeam} />
-
-              {error && <ErrorNote>{error}</ErrorNote>}
-
-              <button type="submit" disabled={busy} className="btn btn-gold mt-5 w-full py-4">
-                {busy ? "Ouverture du plateau…" : "Créer et ouvrir le plateau"}
-              </button>
-              <BackButton onClick={() => setScreen("menu")} />
-            </form>
-          )}
-
-          {/* ---------------- REJOINDRE ---------------- */}
-          {screen === "join" && (
-            <form
-              className="panel panel-solid pop mt-10 p-5"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleJoin();
-              }}
-            >
-              <h2 className="display text-xl text-white">Rejoindre une partie</h2>
-              <p className="mt-1.5 text-[13px] text-white/55">
-                Ce téléphone devient ta télécommande.
-              </p>
-
-              <label className="label mt-5" htmlFor="j-code">
-                Code de la partie
-              </label>
-              <input
-                id="j-code"
-                className="field field-xl font-mono"
-                placeholder="TF-4827"
-                inputMode="text"
-                autoCapitalize="characters"
-                autoComplete="off"
-                maxLength={9}
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-              />
-              {parseCode(code).length >= 4 && (
-                <p className="mt-2 text-center font-mono text-[11px] tracking-[0.2em] text-gold/70">
-                  {prettyCode(parseCode(code))}
+                <h2 className="display text-xl text-white">Créer une partie</h2>
+                <p className="mt-1.5 text-[13px] text-white/55">
+                  Tu deviens <b className="text-gold">host</b>. Le plateau
+                  s&apos;ouvrira sur cet écran — mets-le sur la télévision, et fais
+                  rejoindre les joueurs avec le code.
                 </p>
-              )}
 
-              <label className="label mt-5" htmlFor="j-name">
-                Ton pseudo
-              </label>
-              <input
-                id="j-name"
-                className="field"
-                placeholder="Sarah"
-                maxLength={18}
-                autoComplete="nickname"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+                <label className="label mt-5" htmlFor="c-name">
+                  Ton pseudo
+                </label>
+                <input
+                  id="c-name"
+                  className="field"
+                  placeholder="Mickaël"
+                  maxLength={18}
+                  autoComplete="nickname"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
 
-              <TeamPicker value={team} onChange={setTeam} />
+                <TeamPicker value={team} onChange={setTeam} />
 
-              {error && <ErrorNote>{error}</ErrorNote>}
+                {error && <ErrorNote>{error}</ErrorNote>}
 
-              <button type="submit" disabled={busy} className="btn btn-blue mt-5 w-full py-4">
-                {busy ? "Connexion…" : "Rejoindre"}
-              </button>
-              <BackButton onClick={() => setScreen("menu")} />
-            </form>
-          )}
+                <button type="submit" disabled={busy} className="btn btn-gold mt-5 w-full py-4">
+                  {busy ? "Ouverture du plateau…" : "Créer et ouvrir le plateau"}
+                </button>
+                <BackButton onClick={() => setScreen("menu")} />
+              </motion.form>
+            )}
+
+            {/* ---------------- REJOINDRE ---------------- */}
+            {screen === "join" && (
+              <motion.form
+                key="join"
+                variants={screenVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                transition={screenTransition}
+                className="panel panel-solid mt-10 p-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleJoin();
+                }}
+              >
+                <h2 className="display text-xl text-white">Rejoindre une partie</h2>
+                <p className="mt-1.5 text-[13px] text-white/55">
+                  Ce téléphone devient ta télécommande.
+                </p>
+
+                <label className="label mt-5" htmlFor="j-code">
+                  Code de la partie
+                </label>
+                <input
+                  id="j-code"
+                  className="field field-xl font-mono"
+                  placeholder="TF-4827"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  maxLength={9}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                />
+                {parseCode(code).length >= 4 && (
+                  <p className="mt-2 text-center font-mono text-[11px] tracking-[0.2em] text-gold/70">
+                    {prettyCode(parseCode(code))}
+                  </p>
+                )}
+
+                <label className="label mt-5" htmlFor="j-name">
+                  Ton pseudo
+                </label>
+                <input
+                  id="j-name"
+                  className="field"
+                  placeholder="Sarah"
+                  maxLength={18}
+                  autoComplete="nickname"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+
+                <TeamPicker value={team} onChange={setTeam} />
+
+                {error && <ErrorNote>{error}</ErrorNote>}
+
+                <button type="submit" disabled={busy} className="btn btn-blue mt-5 w-full py-4">
+                  {busy ? "Connexion…" : "Rejoindre"}
+                </button>
+                <BackButton onClick={() => setScreen("menu")} />
+              </motion.form>
+            )}
+          </AnimatePresence>
         </div>
 
         <footer className="text-center">

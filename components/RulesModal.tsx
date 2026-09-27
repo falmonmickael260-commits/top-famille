@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FINALE_TARGET, TOTAL_ROUNDS } from "@/lib/types";
 
 export const RULES_SEEN_KEY = "tf-rules-seen";
@@ -13,6 +14,8 @@ export default function RulesModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -22,20 +25,32 @@ export default function RulesModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[80] grid place-items-center bg-black/72 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Comment jouer"
-      onClick={onClose}
-    >
-      <div
-        className="panel panel-solid pop max-h-[86dvh] w-full max-w-lg overflow-y-auto p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[80] grid place-items-center bg-black/72 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Comment jouer"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0.01 : 0.2 }}
+        >
+          <motion.div
+            className="panel panel-solid max-h-[86dvh] w-full max-w-lg overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.92, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={
+              reduceMotion
+                ? { duration: 0.01 }
+                : { type: "spring", stiffness: 340, damping: 30 }
+            }
+          >
         <h2 className="display text-2xl text-gold neon-gold">Comment jouer</h2>
         <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.24em] text-white/40">
           {TOTAL_ROUNDS} manches · puis la grande finale
@@ -106,8 +121,10 @@ export default function RulesModal({
         <button type="button" onClick={onClose} className="btn btn-gold mt-6 w-full">
           J&apos;ai compris
         </button>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

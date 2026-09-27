@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import { TEAM_NAME, type Player, type Team } from "@/lib/types";
 
 /**
@@ -47,13 +48,27 @@ export default function Roster({
             Aucun joueur
           </p>
         )}
-        {players.map((p) => {
+        <AnimatePresence initial={false}>
+          {players.map((p) => {
           const active = activeId === p.id;
           const duel = faceoffId === p.id;
           const order = turnOrder?.indexOf(p.id) ?? -1;
           return (
-            <div
+            <motion.div
               key={p.id}
+              layout
+              initial={{ opacity: 0, scale: 0.85, y: 14 }}
+              animate={{
+                // Le podium reste maitre de sa mise en avant (data-active) et
+                // de son extinction (data-off) via CSS : Framer ecrit le
+                // transform et l'opacite en inline, ce qui ecraserait
+                // silencieusement ces regles si on ne les reprenait pas ici.
+                opacity: p.live ? 1 : 0.38,
+                scale: active || duel ? 1.035 : 1,
+                y: active || duel ? -4 : 0,
+              }}
+              exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.18 } }}
+              transition={{ type: "spring", stiffness: 420, damping: 32 }}
               className="podium flex items-center gap-2 px-2.5 py-2"
               data-team={team}
               data-active={active || duel ? "true" : "false"}
@@ -106,9 +121,10 @@ export default function Roster({
                   hors ligne
                 </span>
               )}
-            </div>
+            </motion.div>
           );
-        })}
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );
