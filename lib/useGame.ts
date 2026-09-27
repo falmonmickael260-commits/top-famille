@@ -31,7 +31,23 @@ import type { Clock } from "@/lib/useCountdown";
  *     tf_tick est idempotent (verrou sur phase_seq), donc un seul appel agit.
  */
 
-const RESYNC_MS = 15000;   // battement de coeur (le serveur tolere 40 s)
+/*
+ * Battement de coeur : le filet de secours quand Realtime ne pousse rien
+ * (canal coupe, message perdu, projet ou le Realtime ne serait pas active).
+ *
+ * A 15 s, un spectateur qui restait immobile pouvait afficher un chrono
+ * perime jusqu'a 15 s de retard sur le vrai etat serveur : le cas le plus
+ * genant est le duelliste a qui la main vient de passer (apres l'erreur de
+ * l'autre) — sans Realtime pour le prevenir tout de suite, son telephone
+ * continuait de decompter l'ANCIENNE fenetre (celle d'avant), tombait a
+ * "0.0 s" alors qu'il lui restait en verite plusieurs secondes reelles, puis
+ * se corrigeait d'un coup au battement suivant. Le joueur voyait le temps
+ * s'ecouler beaucoup trop vite, essayait de repondre "a temps" sur un
+ * chrono deja faux, et n'y arrivait pas. A 5 s, le meme rattrapage arrive
+ * bien avant que la fenetre de reponse (15 s au plus court) ne soit
+ * entierement perimee.
+ */
+const RESYNC_MS = 5000;
 const TICK_GRACE_MS = 120; // on laisse la derniere image s'afficher
 
 export interface UseGame {
