@@ -92,6 +92,22 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
     }
   };
 
+  /* Le prochain joueur de la rotation, pour l'affichage uniquement.
+     Ce useMemo doit rester AVANT le `return null` ci-dessous : un hook place
+     apres un return conditionnel n'est pas appele a tous les rendus, et React
+     leve « Rendered more hooks than during the previous render » des que la
+     condition change. */
+  const nextPlayer = useMemo(() => {
+    const order = game?.turn_order ?? [];
+    if (order.length === 0) return null;
+    for (let k = 1; k <= order.length; k++) {
+      const id = order[((game?.turn_index ?? 0) + k) % order.length];
+      const p = players.find((x) => x.id === id);
+      if (p?.live) return p;
+    }
+    return null;
+  }, [game?.turn_order, game?.turn_index, players]);
+
   if (!game || !state) return null;
 
   const phase = game.phase;
@@ -104,18 +120,6 @@ export default function PhoneRemote({ g, code }: { g: UseGame; code: string }) {
   const finalist =
     (game.finale_slot === 1 ? game.finale_p1 : game.finale_p2) === myId;
   const iAmFinalist = game.finale_p1 === myId || game.finale_p2 === myId;
-
-  /** Le prochain joueur de la rotation, pour l'affichage uniquement. */
-  const nextPlayer = useMemo(() => {
-    const order = game.turn_order;
-    if (order.length === 0) return null;
-    for (let k = 1; k <= order.length; k++) {
-      const id = order[(game.turn_index + k) % order.length];
-      const p = players.find((x) => x.id === id);
-      if (p?.live) return p;
-    }
-    return null;
-  }, [game.turn_order, game.turn_index, players]);
 
   /* Le mode donne la couleur du fond : rouge = buzz, or = a toi, sombre = attends. */
   const mode: "buzz" | "turn" | "wait" =

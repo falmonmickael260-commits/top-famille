@@ -1609,6 +1609,12 @@ begin
     return public._tf_state(v_game.id, v_uid);
   end if;
 
+  -- Verrou sur la partie : compter puis inserer ne sont pas atomiques, et
+  -- dans un salon deux personnes appuient sur "Rejoindre" en meme temps.
+  -- Sans ce verrou les deux lisaient 5, les deux passaient, et l'equipe se
+  -- retrouvait a 7 alors que la limite est de 6.
+  perform 1 from public.tf_games where id = v_game.id for update;
+
   select count(*) into v_n from public.tf_players
    where game_id = v_game.id and team = v_team and id <> v_uid;
   if v_n >= public.tf_max_per_team() then
@@ -1657,6 +1663,10 @@ begin
   if v_team not in ('R', 'B') then
     raise exception 'Equipe invalide.' using errcode = 'P0001';
   end if;
+
+  -- Meme course que dans tf_join : deux bascules simultanees vers la meme
+  -- equipe pouvaient la faire deborder. On serialise par partie.
+  perform 1 from public.tf_games where id = v_game.id for update;
 
   select count(*) into v_n from public.tf_players
    where game_id = v_game.id and team = v_team and id <> v_uid;
