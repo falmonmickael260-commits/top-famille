@@ -281,10 +281,20 @@ ne peut pas faire sauter une animation. `tf_events` existe en plus, en ajout
 seul, comme journal.
 
 **Déconnexion et retour.** `tf_players.last_seen` est un battement de cœur
-(15 s côté client, 40 s de tolérance côté serveur). Un téléphone verrouillé
-n'est pas « parti » : la rotation saute son tour s'il ne revient pas, et il
-redevient joueur actif dès qu'on le rallume. Aucun état de partie en
-`localStorage` — seuls le pseudo et les réglages de son y sont mémorisés.
+(resynchro toutes les 5 s côté client, 40 s de tolérance côté serveur). Un
+téléphone verrouillé n'est pas « parti » : la rotation saute son tour s'il ne
+revient pas, et il redevient joueur actif dès qu'on le rallume. Aucun état de
+partie en `localStorage` — seuls le pseudo et les réglages de son y sont
+mémorisés.
+
+Le battement **n'écrit pas à chaque passage**. `tf_players` est publiée sur
+Realtime : une écriture par resynchro et par téléphone était rediffusée à tous
+les autres, qui rechargeaient la liste des joueurs pour un horodatage que
+personne n'affiche. Le coût est en N² — à six joueurs, 432 requêtes inutiles
+par minute, et le canal finissait par tomber en boucle. Deux garde-fous
+désormais : `_tf_touch` n'écrit que si le joueur était hors ligne ou si son
+dernier signe de vie date de plus de 10 s, et le client ignore les événements
+`tf_players` dont seul `last_seen` a changé.
 
 ### La sécurité des réponses
 

@@ -510,9 +510,25 @@ security definer
 set search_path = public
 as $$
 begin
+  -- On n'ecrit QUE si l'etat change vraiment.
+  --
+  -- tf_players est publiee sur Realtime (replica identity full). Comme
+  -- tf_state est appele toutes les 5 s par chaque telephone et qu'il passe
+  -- ici, une ecriture inconditionnelle diffusait le battement de CHAQUE
+  -- joueur a TOUS les autres : a N joueurs, N²/5 messages par seconde, et
+  -- autant de rechargements de la liste — uniquement pour un horodatage que
+  -- personne n'affiche. A partir de six telephones le canal saturait, tombait
+  -- en boucle ("Reconnexion…"), les requetes se faisaient jeter par la limite
+  -- de debit, et faute de battement qui passe les joueurs finissaient par
+  -- s'afficher hors ligne alors qu'ils etaient bien la.
+  --
+  -- 10 s de pas, pour 40 s de fenetre de tolerance : trois battements de
+  -- marge avant qu'un joueur soit considere parti. Un joueur marque hors
+  -- ligne, lui, est reveille immediatement.
   update public.tf_players
      set last_seen = now(), connected = true
-   where id = p_uid and game_id = p_game_id;             -- WHERE obligatoire
+   where id = p_uid and game_id = p_game_id             -- WHERE obligatoire
+     and (not connected or last_seen < now() - interval '10 seconds');
 end;
 $$;
 

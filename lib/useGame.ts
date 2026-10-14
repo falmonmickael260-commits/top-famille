@@ -50,6 +50,41 @@ import type { Clock } from "@/lib/useCountdown";
 const RESYNC_MS = 5000;
 const TICK_GRACE_MS = 120; // on laisse la derniere image s'afficher
 
+/*
+ * Au-dela de ce delai, une resynchro est consideree perdue et une nouvelle
+ * peut partir. Sans ce garde-fou, une requete qui ne se resout jamais (reseau
+ * mobile qui bascule, onglet gele par iOS) laissait le verrou pris pour
+ * toujours : plus aucun battement de coeur ne passait, et le telephone
+ * restait fige sur un etat perime jusqu'au rechargement de la page.
+ */
+const STUCK_MS = 15000;
+
+/** Colonnes de tf_players qui ne changent rien a l'affichage. */
+const COSMETIC_PLAYER_COLUMNS = new Set(["last_seen"]);
+
+/**
+ * Vrai quand deux versions d'une ligne joueur ne different que par son
+ * horodatage de battement de coeur.
+ *
+ * tf_state ecrit `last_seen` et cette table est publiee sur Realtime : sans
+ * ce filtre, le battement de CHAQUE telephone reveillait TOUS les autres, qui
+ * rechargeaient la liste des joueurs pour rien. A six joueurs cela faisait
+ * une quarantaine de requetes par seconde pour une donnee que personne
+ * n'affiche — le canal saturait et tombait en boucle.
+ */
+function isHeartbeatOnly(
+  prev: Partial<Player> | undefined,
+  next: Partial<Player> | undefined
+): boolean {
+  if (!prev || !next || !prev.id || !next.id) return false;
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  for (const key of keys) {
+    if (COSMETIC_PLAYER_COLUMNS.has(key)) continue;
+    if (prev[key as keyof Player] !== next[key as keyof Player]) return false;
+  }
+  return true;
+}
+
 export interface UseGame {
   myId: string | null;
   game: Game | null;
@@ -90,7 +125,11 @@ export function useGame(code: string): UseGame {
   /** Derniere phase pour laquelle on possede deja le tableau complet. */
   const loadedSeq = useRef(-1);
   /** Resynchro en cours, pour ne pas en lancer dix en parallele. */
-  const inFlight = useRef<Promise<void> | null>(null);
+  const inFlight = useRef<{
+    token: object;
+    promise: Promise<void>;
+    startedAt: number;
+  } | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const seqRef = useRef(-1);
 
@@ -162,18 +201,25 @@ export function useGame(code: string): UseGame {
    */
   const refresh = useCallback(
     async (opts?: { force?: boolean }) => {
-      if (!opts?.force && inFlight.current) return inFlight.current;
-      const p = (async () => {
+      const current = inFlight.current;
+      const stuck = !!current && Date.now() - current.startedAt > STUCK_MS;
+      if (!opts?.force && current && !stuck) return current.promise;
+
+      const token = {};
+      const promise = (async () => {
         try {
           apply(await fetchState(code));
         } catch {
           /* silencieux : une resynchro ratee sera retentee au battement suivant */
         } finally {
-          inFlight.current = null;
+          /* Une requete lente qui se termine APRES qu'une autre soit partie ne
+             doit pas liberer le verrou de cette derniere : sinon le garde-fou
+             anti-rafale ne protege plus rien. */
+          if (inFlight.current?.token === token) inFlight.current = null;
         }
       })();
-      inFlight.current = p;
-      return p;
+      inFlight.current = { token, promise, startedAt: Date.now() };
+      return promise;
     },
     [code, apply]
   );
@@ -231,7 +277,12 @@ export function useGame(code: string): UseGame {
       (payload) => {
         const next = payload.new as Partial<Player> | undefined;
         const prev = payload.old as Partial<Player> | undefined;
-        if (next?.game_id === gameId || prev?.game_id === gameId) void refreshPlayers();
+        if (next?.game_id !== gameId && prev?.game_id !== gameId) return;
+        // Un battement de coeur ne change que `last_seen`. Le drapeau `live`
+        // affiche dans la liste est recalcule par le serveur et arrive deja
+        // avec la resynchro periodique : inutile de recharger pour ca.
+        if (isHeartbeatOnly(prev, next)) return;
+        void refreshPlayers();
       }
     );
 
@@ -270,7 +321,11 @@ export function useGame(code: string): UseGame {
     };
     window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
-    const iv = window.setInterval(() => void refresh({ force: true }), RESYNC_MS);
+    /* Pas de `force` ici : le battement de coeur part toutes les 5 s, et sur
+       un reseau lent une requete peut durer plus longtemps que ca. Force
+       aurait empile les resynchros sans limite — chacune ralentissant la
+       suivante — jusqu'a la limite de debit de Supabase. */
+    const iv = window.setInterval(() => void refresh(), RESYNC_MS);
     return () => {
       window.removeEventListener("focus", onVisible);
       document.removeEventListener("visibilitychange", onVisible);
